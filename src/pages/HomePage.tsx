@@ -7,10 +7,24 @@ import { CategoryFilter } from "@/components/CategoryFilter";
 import { HeroSlider } from "@/components/HeroSlider";
 import { Loader2, Sparkles, ChevronRight } from "lucide-react";
 import { useWishlist } from "@/hooks/useWishlist";
+import { SEO } from "@/components/SEO";
 
 export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { wishlistIds, toggleWishlist, isLoggedIn } = useWishlist();
+
+  const homeJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Bakery",
+    name: "Sarah Bakery",
+    image: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/640f06dd-3668-465b-a4f2-3711767cd895",
+    "@id": "https://sarahbakery.com",
+    url: "https://sarahbakery.com",
+    priceRange: "$$",
+    servesCuisine: "Bakery, Cakes, Pastry, Bolu Panggang",
+    description: "Toko kue dan roti spesialis yang mengedepankan kualitas tekstur dan kemurnian rasa.",
+  };
+
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
@@ -63,6 +77,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background pb-safe">
+      <SEO jsonLd={homeJsonLd} />
       {/* Header */}
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-lg border-b border-border">
         <div className="px-4 py-4">

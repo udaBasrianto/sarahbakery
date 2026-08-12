@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
+import { SEO } from "@/components/SEO";
 import { apiClient } from "@/integrations/api/client";
 import { Calendar, ChevronLeft } from "lucide-react";
 
@@ -32,14 +32,10 @@ export default function BlogListPage() {
 
   return (
     <div className="pb-24 min-h-screen">
-      <Helmet>
-        <title>Blog - Sarah Bakery</title>
-        <meta
-          name="description"
-          content="Artikel, tips, dan cerita seputar kue dan roti dari Sarah Bakery."
-        />
-        <link rel="canonical" href="https://sarah-bakery.lovable.app/blog" />
-      </Helmet>
+      <SEO
+        title="Blog & Resep Kuliner"
+        description="Kumpulan artikel, tips memanggang bolu lembut, resep pastry, dan kisah unik dari dapur Sarah Bakery."
+      />
 
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-lg border-b border-border">
         <div className="flex items-center gap-2 px-4 h-14">

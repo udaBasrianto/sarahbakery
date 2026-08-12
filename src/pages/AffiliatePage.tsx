@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Copy, Share2, Coins, Users, TrendingUp, Wallet, Gift, Sparkles,
 } from "lucide-react";
+import { SEO } from "@/components/SEO";
 
 interface Affiliate {
   id: string;
@@ -189,6 +190,10 @@ export default function AffiliatePage() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      <SEO
+        title="Program Afiliasi & Komisi Mitra"
+        description="Bergabung menjadi mitra afiliasi Sarah Bakery. Bagikan kode rujukan dan dapatkan poin komisi untuk setiap pembelian."
+      />
       {/* Header */}
       <header className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground p-5 pb-16 rounded-b-3xl">
         <div className="flex items-center justify-between mb-4">

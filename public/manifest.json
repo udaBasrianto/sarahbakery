@@ -1,0 +1,54 @@
+{
+  "name": "Sarah Bakery - Roti & Kue Spesialis",
+  "short_name": "SarahBakery",
+  "description": "Toko kue dan roti spesialis yang mengedepankan kualitas tekstur dan kemurnian rasa. Menyediakan bolu panggang, roti manis, kue kering, dan pastry lembut.",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#d97706",
+  "scope": "/",
+  "categories": ["shopping", "food", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Katalog Produk",
+      "short_name": "Produk",
+      "description": "Buka katalog produk roti & kue",
+      "url": "/products",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Kue Custom",
+      "short_name": "Custom",
+      "description": "Formulir pemesanan kue kustom",
+      "url": "/custom-order",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

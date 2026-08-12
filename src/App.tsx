@@ -32,6 +32,8 @@ import AdminBlogPage from "./pages/admin/AdminBlogPage";
 import AdminAffiliatesPage from "./pages/admin/AdminAffiliatesPage";
 import AdminCategoriesPage from "./pages/admin/AdminCategoriesPage";
 import AffiliatePage from "./pages/AffiliatePage";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import SitemapPage from "./pages/SitemapPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -75,7 +77,9 @@ const App = () => (
             <Route path="/dashboard/affiliate" element={<AffiliatePage />} />
             <Route path="/blog" element={<BlogListPage />} />
             <Route path="/blog/:slug" element={<BlogDetailPage />} />
+            <Route path="/sitemap" element={<SitemapPage />} />
           </Route>
+
           
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminLoginPage />} />
@@ -96,6 +100,7 @@ const App = () => (
         </Routes>
         <BottomNav />
         <ChatBot />
+        <PWAInstallPrompt />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

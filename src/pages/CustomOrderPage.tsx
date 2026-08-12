@@ -14,6 +14,7 @@ import { apiClient } from "@/integrations/api/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDefaultStoreId } from "@/hooks/useDefaultStore";
+import { SEO } from "@/components/SEO";
 
 export default function CustomOrderPage() {
   const storeId = useDefaultStoreId();
@@ -155,6 +156,10 @@ export default function CustomOrderPage() {
 
   return (
     <div className="min-h-screen bg-background pb-safe">
+      <SEO
+        title="Pemesanan Kue Custom & Pre-Order"
+        description="Pesan kue ulang tahun, roti spesial, dan hampers custom sesuai keinginan Anda di Sarah Bakery dengan bahan berkualitas."
+      />
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-lg border-b border-border">
         <div className="px-4 py-4 flex items-center gap-3">
           <button

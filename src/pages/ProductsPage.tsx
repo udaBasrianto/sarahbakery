@@ -6,6 +6,7 @@ import { CategoryFilter } from "@/components/CategoryFilter";
 import { Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useWishlist } from "@/hooks/useWishlist";
+import { SEO } from "@/components/SEO";
 
 export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -67,6 +68,10 @@ export default function ProductsPage() {
 
   return (
     <div className="min-h-screen bg-background pb-safe">
+      <SEO
+        title="Katalog Produk Roti & Kue Premium"
+        description="Jelajahi berbagai pilihan bolu panggang lembut, roti manis, kue kering, dan pastry segar buatan dapur Sarah Bakery."
+      />
       {/* Header */}
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-lg border-b border-border">
         <div className="px-4 py-4">

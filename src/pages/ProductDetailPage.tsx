@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, Minus, Check, Loader2, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ProductReviews from "@/components/ProductReviews";
+import { SEO } from "@/components/SEO";
 
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -97,8 +98,34 @@ export default function ProductDetailPage() {
 
   const category = product.categories as { name: string; icon: string | null } | null;
 
+  const productJsonLd = {
+    "@context": "https://schema.org/",
+    "@type": "Product",
+    name: product.name,
+    image: allImages.length > 0 ? allImages : [product.image_url],
+    description: product.description || `Beli ${product.name} lezat dari Sarah Bakery.`,
+    sku: product.sku || `SB-${product.id}`,
+    offers: {
+      "@type": "Offer",
+      priceCurrency: "IDR",
+      price: product.price,
+      availability: product.is_available !== false ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      seller: {
+        "@type": "Organization",
+        name: "Sarah Bakery",
+      },
+    },
+  };
+
   return (
     <div className="min-h-screen bg-background pb-safe">
+      <SEO
+        title={product.name}
+        description={product.description || `Pesan ${product.name} segar buatan tangan dari Sarah Bakery.`}
+        ogType="product"
+        ogImage={allImages[0] || product.image_url}
+        jsonLd={productJsonLd}
+      />
       {/* Header */}
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-lg border-b border-border">
         <div className="px-4 py-3 flex items-center gap-3">

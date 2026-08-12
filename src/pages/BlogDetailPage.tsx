@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
+import { SEO } from "@/components/SEO";
 import { apiClient } from "@/integrations/api/client";
 import { Calendar, ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -65,38 +65,30 @@ export default function BlogDetailPage() {
   const metaDesc =
     post.meta_description || post.excerpt || `${post.title} - Sarah Bakery`;
 
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: metaDesc,
+    image: post.cover_image || undefined,
+    datePublished: post.published_at,
+    author: { "@type": "Organization", name: "Sarah Bakery" },
+    publisher: {
+      "@type": "Organization",
+      name: "Sarah Bakery",
+    },
+  };
+
   return (
     <div className="pb-24 min-h-screen bg-background">
-      <Helmet>
-        <title>{metaTitle}</title>
-        <meta name="description" content={metaDesc} />
-        {post.keywords && <meta name="keywords" content={post.keywords} />}
-        <link rel="canonical" href={url} />
-        <meta property="og:type" content="article" />
-        <meta property="og:title" content={metaTitle} />
-        <meta property="og:description" content={metaDesc} />
-        <meta property="og:url" content={url} />
-        {post.cover_image && (
-          <meta property="og:image" content={post.cover_image} />
-        )}
-        <meta name="twitter:card" content="summary_large_image" />
-        <script type="application/ld+json">
-          {JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Article",
-            headline: post.title,
-            description: metaDesc,
-            image: post.cover_image || undefined,
-            datePublished: post.published_at,
-            mainEntityOfPage: url,
-            author: { "@type": "Organization", name: "Sarah Bakery" },
-            publisher: {
-              "@type": "Organization",
-              name: "Sarah Bakery",
-            },
-          })}
-        </script>
-      </Helmet>
+      <SEO
+        title={metaTitle}
+        description={metaDesc}
+        keywords={post.keywords || undefined}
+        ogType="article"
+        ogImage={post.cover_image || undefined}
+        jsonLd={articleJsonLd}
+      />
 
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-lg border-b border-border">
         <div className="flex items-center gap-2 px-4 h-14">

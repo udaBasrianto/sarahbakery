@@ -59,6 +59,80 @@ async def favicon():
         return FileResponse(favicon_path)
     raise HTTPException(status_code=404, detail={"message": "Favicon not found"})
 
+@app.get("/robots.txt")
+async def robots_txt(request: Request):
+    host_url = str(request.base_url).rstrip("/")
+    content = f"""User-agent: *
+Allow: /
+
+Disallow: /admin
+Disallow: /dashboard
+
+Sitemap: {host_url}/sitemap.xml
+"""
+    return Response(content=content, media_type="text/plain")
+
+@app.get("/sitemap.xml")
+async def sitemap_xml(request: Request):
+    base_url = str(request.base_url).rstrip("/")
+    now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    urls = [
+        {"loc": f"{base_url}/", "lastmod": now_iso, "changefreq": "daily", "priority": "1.0"},
+        {"loc": f"{base_url}/products", "lastmod": now_iso, "changefreq": "daily", "priority": "0.9"},
+        {"loc": f"{base_url}/custom-order", "lastmod": now_iso, "changefreq": "weekly", "priority": "0.8"},
+        {"loc": f"{base_url}/blog", "lastmod": now_iso, "changefreq": "daily", "priority": "0.8"},
+        {"loc": f"{base_url}/sitemap", "lastmod": now_iso, "changefreq": "monthly", "priority": "0.5"},
+        {"loc": f"{base_url}/affiliate", "lastmod": now_iso, "changefreq": "weekly", "priority": "0.6"},
+    ]
+
+    # Fetch active products
+    if app.state.pool:
+        try:
+            products = await fetch_all(app.state.pool, "SELECT id, slug, updated_at, created_at FROM products WHERE is_available = true ORDER BY id DESC")
+            for p in products:
+                slug_or_id = p.get("slug") or str(p.get("id"))
+                lastmod = p.get("updated_at") or p.get("created_at") or datetime.utcnow()
+                lastmod_str = lastmod.strftime("%Y-%m-%dT%H:%M:%SZ") if isinstance(lastmod, datetime) else now_iso
+                urls.append({
+                    "loc": f"{base_url}/product/{slug_or_id}",
+                    "lastmod": lastmod_str,
+                    "changefreq": "weekly",
+                    "priority": "0.8"
+                })
+        except Exception:
+            pass
+
+        # Fetch published blog posts
+        try:
+            posts = await fetch_all(app.state.pool, "SELECT id, slug, published_at, created_at FROM blog_posts WHERE is_published = true ORDER BY id DESC")
+            for post in posts:
+                slug_or_id = post.get("slug") or str(post.get("id"))
+                lastmod = post.get("published_at") or post.get("created_at") or datetime.utcnow()
+                lastmod_str = lastmod.strftime("%Y-%m-%dT%H:%M:%SZ") if isinstance(lastmod, datetime) else now_iso
+                urls.append({
+                    "loc": f"{base_url}/blog/{slug_or_id}",
+                    "lastmod": lastmod_str,
+                    "changefreq": "weekly",
+                    "priority": "0.7"
+                })
+        except Exception:
+            pass
+
+    xml_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml_content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    for u in urls:
+        xml_content += "  <url>\n"
+        xml_content += f"    <loc>{u['loc']}</loc>\n"
+        xml_content += f"    <lastmod>{u['lastmod']}</lastmod>\n"
+        xml_content += f"    <changefreq>{u['changefreq']}</changefreq>\n"
+        xml_content += f"    <priority>{u['priority']}</priority>\n"
+        xml_content += "  </url>\n"
+    xml_content += "</urlset>"
+
+    return Response(content=xml_content, media_type="application/xml")
+
+
 class QueryOrder(BaseModel):
     column: Optional[str] = None
     field: Optional[str] = None
