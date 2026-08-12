@@ -1,0 +1,72 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ==============================================================
+# Backend (FastAPI Python) - Sarah Bakery
+# ==============================================================
+
+# Virtual Environment Python (venv / .venv)
+backend/.venv/
+.venv/
+venv/
+backend/venv/
+env/
+backend/env/
+
+# Python bytecode & cache
+__pycache__/
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.spec
+
+# Environment variables (RAHASIA - JANGAN COMMIT!)
+.env
+.env.*
+backend/.env
+backend/.env.*
+!.env.example
+!.env.sample
+
+# Python coverage & testing
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+backend/.pytest_cache/
+.mypy_cache/
+backend/.mypy_cache/
+.ruff_cache/
+
+# Uvicorn server log
+backend/uvicorn.log
+backend/app.log
+*.log.*
+
+# Sandbox temp scripts
+backend/_*.py
+_*.py
