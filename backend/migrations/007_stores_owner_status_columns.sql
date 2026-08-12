@@ -21,8 +21,9 @@ END $$;
 
 -- Seed default admin user if user id=1 does not exist
 INSERT INTO users (id, email, password_hash, full_name, phone)
-VALUES (1, 'admin@sarahbakery.com', '$2b$12$KIXs6L9KqR/6Q7b9M/M7leW.9t0xT2kQyLzS4wU6B5a.3z9N0L6nC', 'Admin Sarah Bakery', '08123456789')
-ON CONFLICT (id) DO NOTHING;
+VALUES (1, 'admin@sarahbakery.com', '$2b$12$Cm7IF9dhcjV1g.ElQ3FOsufwlKFUUplGUqaWc8RoO9cwoEu8fYJru', 'Admin Sarah Bakery', '08123456789')
+ON CONFLICT (id) DO UPDATE SET password_hash = EXCLUDED.password_hash;
+
 
 -- Seed: assign existing store (id=1) to super admin user id=1 (admin@sarahbakery.com) if owner_id is null.
 UPDATE stores SET owner_id = 1 WHERE owner_id IS NULL AND id = 1 AND EXISTS (SELECT 1 FROM users WHERE id = 1);
