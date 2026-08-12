@@ -386,4 +386,5 @@ Di Sarah Bakery, kami menggunakan matcha ceremonial grade Uji Jepang dan dark ch
   'matcha vs coklat, matcha cake, coklat kue, bahan kue premium, sarah bakery',
   ARRAY['edukasi', 'matcha', 'coklat', 'perbandingan'],
   TRUE, NOW(), 1
-);
+)
+ON CONFLICT (slug) DO NOTHING;
