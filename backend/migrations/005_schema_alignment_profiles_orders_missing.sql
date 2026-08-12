@@ -50,11 +50,17 @@ CREATE INDEX IF NOT EXISTS idx_cart_items_user ON cart_items(user_id);
 -- 6. blog_posts: referenced by AdminBlogPage + BlogList/BlogDetail
 CREATE TABLE IF NOT EXISTS blog_posts (
   id SERIAL PRIMARY KEY,
+  store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
   slug TEXT UNIQUE,
   title TEXT NOT NULL,
   excerpt TEXT,
   content TEXT,
   cover_image TEXT,
+  meta_title TEXT,
+  meta_description TEXT,
+  keywords TEXT,
+  tags TEXT[],
+  is_published BOOLEAN DEFAULT TRUE,
   author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'published',
   published_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
