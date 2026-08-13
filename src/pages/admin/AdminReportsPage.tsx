@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import AdminPageLayout from "./AdminPageLayout";
 
 type OrderItem = {
   id?: string;
@@ -237,7 +238,7 @@ export default function AdminReportsPage() {
   const handlePrint = () => window.print();
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
+    <AdminPageLayout>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 print:hidden">
         <div>
           <h1 className="font-display text-2xl font-bold text-foreground">Laporan Penjualan</h1>
@@ -513,7 +514,7 @@ export default function AdminReportsPage() {
       </p>
 
       {isLoading && <p className="text-center text-muted-foreground">Memuat data...</p>}
-    </div>
+    </AdminPageLayout>
   );
 }
 

@@ -15,9 +15,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ImageUpload } from "@/components/ImageUpload";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Pencil, Trash2, GripVertical, Loader2, Tag, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminStoreId } from "@/hooks/useDefaultStore";
+import AdminPageLayout from "./AdminPageLayout";
 
 interface Category {
   id: string;
@@ -237,8 +239,53 @@ export default function AdminCategoriesPage() {
     return {};
   }, []);
 
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredCategories.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredCategories.map((c) => c.id));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+    if (!confirm(`Hapus ${selectedIds.length} kategori yang dipilih?`)) return;
+    try {
+      for (const id of selectedIds) {
+        await apiClient.from("categories").delete().eq("id", id);
+      }
+      toast.success(`${selectedIds.length} kategori berhasil dihapus`);
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
+    } catch (err: any) {
+      toast.error("Gagal menghapus kategori: " + err.message);
+    }
+  };
+
+  const handleBulkToggleActive = async (is_active: boolean) => {
+    if (!selectedIds.length) return;
+    try {
+      for (const id of selectedIds) {
+        await apiClient.from("categories").update({ is_active }).eq("id", id);
+      }
+      toast.success(`Status ${selectedIds.length} kategori diperbarui`);
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
+    } catch (err: any) {
+      toast.error("Gagal memperbarui status: " + err.message);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <AdminPageLayout>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Kategori Produk</h1>
@@ -437,6 +484,60 @@ export default function AdminCategoriesPage() {
         </Card>
       )}
 
+      {/* Bulk Action Bar */}
+      {filteredCategories.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-card rounded-xl border border-border">
+          <div className="flex items-center gap-3">
+            <Checkbox
+              checked={
+                filteredCategories.length > 0 &&
+                selectedIds.length === filteredCategories.length
+              }
+              onCheckedChange={toggleSelectAll}
+              id="select-all-categories"
+            />
+            <label
+              htmlFor="select-all-categories"
+              className="text-sm font-medium cursor-pointer"
+            >
+              Pilih Semua ({filteredCategories.length})
+            </label>
+            {selectedIds.length > 0 && (
+              <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-semibold">
+                {selectedIds.length} dipilih
+              </span>
+            )}
+          </div>
+
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkToggleActive(true)}
+              >
+                Aktifkan
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkToggleActive(false)}
+              >
+                Nonaktifkan
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                Hapus ({selectedIds.length})
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Category List */}
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
@@ -462,10 +563,16 @@ export default function AdminCategoriesPage() {
           {filteredCategories.map((cat) => (
             <Card
               key={cat.id}
-              className={!cat.is_active ? "opacity-60" : ""}
+              className={`${!cat.is_active ? "opacity-60" : ""} ${
+                selectedIds.includes(cat.id) ? "border-primary bg-primary/5" : ""
+              }`}
             >
               <CardContent className="p-4">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    checked={selectedIds.includes(cat.id)}
+                    onCheckedChange={() => toggleSelectOne(cat.id)}
+                  />
                   <GripVertical className="w-5 h-5 text-muted-foreground cursor-grab flex-shrink-0" />
                   {cat.image_url ? (
                     <img
@@ -544,6 +651,6 @@ export default function AdminCategoriesPage() {
           ))}
         </div>
       )}
-    </div>
+    </AdminPageLayout>
   );
 }

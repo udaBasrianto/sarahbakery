@@ -15,9 +15,11 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { ImageUpload } from "@/components/ImageUpload";
 import { Plus, Pencil, Trash2, Eye, ExternalLink, Search } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { useAdminStoreId } from "@/hooks/useDefaultStore";
+import AdminPageLayout from "./AdminPageLayout";
 
 interface BlogPost {
   id: string;
@@ -200,8 +202,53 @@ export default function AdminBlogPage() {
       p.slug.toLowerCase().includes(search.toLowerCase()),
   );
 
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filtered.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filtered.map((p) => p.id));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+    if (!confirm(`Hapus ${selectedIds.length} artikel blog yang dipilih?`)) return;
+    try {
+      for (const id of selectedIds) {
+        await apiClient.from("blog_posts").delete().eq("id", id);
+      }
+      toast.success(`${selectedIds.length} artikel berhasil dihapus`);
+      setSelectedIds([]);
+      loadPosts();
+    } catch (err: any) {
+      toast.error("Gagal menghapus artikel: " + err.message);
+    }
+  };
+
+  const handleBulkTogglePublished = async (is_published: boolean) => {
+    if (!selectedIds.length) return;
+    try {
+      for (const id of selectedIds) {
+        await apiClient.from("blog_posts").update({ is_published }).eq("id", id);
+      }
+      toast.success(`Status ${selectedIds.length} artikel diperbarui`);
+      setSelectedIds([]);
+      loadPosts();
+    } catch (err: any) {
+      toast.error("Gagal memperbarui status: " + err.message);
+    }
+  };
+
   return (
-    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+    <AdminPageLayout>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl lg:text-3xl font-display font-bold">Blog</h1>
@@ -224,6 +271,54 @@ export default function AdminBlogPage() {
         />
       </div>
 
+      {/* Bulk Action Bar */}
+      {filtered.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 mb-4 bg-card rounded-xl border border-border">
+          <div className="flex items-center gap-3">
+            <Checkbox
+              checked={filtered.length > 0 && selectedIds.length === filtered.length}
+              onCheckedChange={toggleSelectAll}
+              id="select-all-blog"
+            />
+            <label htmlFor="select-all-blog" className="text-sm font-medium cursor-pointer">
+              Pilih Semua ({filtered.length})
+            </label>
+            {selectedIds.length > 0 && (
+              <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-semibold">
+                {selectedIds.length} dipilih
+              </span>
+            )}
+          </div>
+
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkTogglePublished(true)}
+              >
+                Set Publish
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkTogglePublished(false)}
+              >
+                Set Draft
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                Hapus ({selectedIds.length})
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <p className="text-muted-foreground">Memuat...</p>
       ) : filtered.length === 0 ? (
@@ -235,8 +330,16 @@ export default function AdminBlogPage() {
           {filtered.map((p) => (
             <div
               key={p.id}
-              className="bg-card border border-border rounded-xl p-4 flex flex-col sm:flex-row gap-4"
+              className={`bg-card border border-border rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-start ${
+                selectedIds.includes(p.id) ? "border-primary bg-primary/5" : ""
+              }`}
             >
+              <div className="pt-1">
+                <Checkbox
+                  checked={selectedIds.includes(p.id)}
+                  onCheckedChange={() => toggleSelectOne(p.id)}
+                />
+              </div>
               {p.cover_image && (
                 <img
                   src={p.cover_image}
@@ -429,7 +532,7 @@ export default function AdminBlogPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminPageLayout>
   );
 }
 

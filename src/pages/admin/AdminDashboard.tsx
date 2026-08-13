@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/integrations/api/client";
 import { Package, ClipboardList, TrendingUp, Clock } from "lucide-react";
+import AdminPageLayout from "./AdminPageLayout";
 
 export default function AdminDashboard() {
   const { data: productsCount = 0 } = useQuery({
@@ -88,7 +89,7 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="p-4 lg:p-6">
+    <AdminPageLayout>
       <h1 className="font-display text-2xl font-bold text-foreground mb-6">
         Dashboard
       </h1>
@@ -152,7 +153,7 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
-    </div>
+    </AdminPageLayout>
   );
 }
 

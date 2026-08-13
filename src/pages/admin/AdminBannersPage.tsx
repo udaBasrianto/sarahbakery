@@ -14,9 +14,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ImageUpload } from "@/components/ImageUpload";
-import { Plus, Pencil, Trash2, GripVertical, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Pencil, Trash2, GripVertical, Loader2, CheckSquare, Square } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminStoreId } from "@/hooks/useDefaultStore";
+import AdminPageLayout from "./AdminPageLayout";
 
 interface Banner {
   id: string;
@@ -195,8 +197,53 @@ export default function AdminBannersPage() {
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === banners.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(banners.map((b) => b.id));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+    if (!confirm(`Hapus ${selectedIds.length} banner yang dipilih?`)) return;
+    try {
+      for (const id of selectedIds) {
+        await apiClient.from("banners").delete().eq("id", id);
+      }
+      toast.success(`${selectedIds.length} banner berhasil dihapus`);
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ["admin-banners"] });
+    } catch (err: any) {
+      toast.error("Gagal menghapus banner: " + err.message);
+    }
+  };
+
+  const handleBulkToggleActive = async (is_active: boolean) => {
+    if (!selectedIds.length) return;
+    try {
+      for (const id of selectedIds) {
+        await apiClient.from("banners").update({ is_active }).eq("id", id);
+      }
+      toast.success(`Status ${selectedIds.length} banner diperbarui`);
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ["admin-banners"] });
+    } catch (err: any) {
+      toast.error("Gagal mengubah status: " + err.message);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <AdminPageLayout>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Kelola Banner</h1>
@@ -391,6 +438,54 @@ export default function AdminBannersPage() {
         </Card>
       )}
 
+      {/* Bulk Action Bar */}
+      {banners.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-card rounded-xl border border-border">
+          <div className="flex items-center gap-3">
+            <Checkbox
+              checked={banners.length > 0 && selectedIds.length === banners.length}
+              onCheckedChange={toggleSelectAll}
+              id="select-all-banners"
+            />
+            <label htmlFor="select-all-banners" className="text-sm font-medium cursor-pointer">
+              Pilih Semua ({banners.length})
+            </label>
+            {selectedIds.length > 0 && (
+              <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-semibold">
+                {selectedIds.length} dipilih
+              </span>
+            )}
+          </div>
+
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkToggleActive(true)}
+              >
+                Aktifkan
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkToggleActive(false)}
+              >
+                Nonaktifkan
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                Hapus ({selectedIds.length})
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Banner List */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
@@ -405,9 +500,18 @@ export default function AdminBannersPage() {
       ) : (
         <div className="space-y-3">
           {banners.map((banner) => (
-            <Card key={banner.id} className={!banner.is_active ? "opacity-60" : ""}>
+            <Card
+              key={banner.id}
+              className={`${!banner.is_active ? "opacity-60" : ""} ${
+                selectedIds.includes(banner.id) ? "border-primary bg-primary/5" : ""
+              }`}
+            >
               <CardContent className="p-4">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    checked={selectedIds.includes(banner.id)}
+                    onCheckedChange={() => toggleSelectOne(banner.id)}
+                  />
                   <GripVertical className="w-5 h-5 text-muted-foreground cursor-grab" />
                   <div
                     className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl flex-shrink-0"
@@ -460,7 +564,7 @@ export default function AdminBannersPage() {
           ))}
         </div>
       )}
-    </div>
+    </AdminPageLayout>
   );
 }
 

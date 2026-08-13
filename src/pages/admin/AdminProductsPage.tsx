@@ -15,8 +15,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MultiImageUpload } from "@/components/MultiImageUpload";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useAdminStoreId } from "@/hooks/useDefaultStore";
+import AdminPageLayout from "./AdminPageLayout";
 
 interface Product {
   id: string;
@@ -242,7 +244,7 @@ export default function AdminProductsPage() {
 
   if (view === "form") {
     return (
-      <div className="p-4 lg:p-6 max-w-2xl mx-auto">
+      <AdminPageLayout className="max-w-2xl">
         <div className="flex items-center gap-3 mb-6">
           <Button variant="ghost" size="icon" onClick={closeForm}>
             <ArrowLeft className="w-5 h-5" />
@@ -378,12 +380,57 @@ export default function AdminProductsPage() {
             </Button>
           </div>
         </form>
-      </div>
+      </AdminPageLayout>
     );
   }
 
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === products.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(products.map((p) => p.id));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+    if (!confirm(`Hapus ${selectedIds.length} produk yang dipilih?`)) return;
+    try {
+      for (const id of selectedIds) {
+        await apiClient.from("products").delete().eq("id", id);
+      }
+      toast.success(`${selectedIds.length} produk berhasil dihapus`);
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+    } catch (err: any) {
+      toast.error("Gagal menghapus produk: " + err.message);
+    }
+  };
+
+  const handleBulkAvailability = async (is_available: boolean) => {
+    if (!selectedIds.length) return;
+    try {
+      for (const id of selectedIds) {
+        await apiClient.from("products").update({ is_available }).eq("id", id);
+      }
+      toast.success(`Status ketersediaan ${selectedIds.length} produk diperbarui`);
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+    } catch (err: any) {
+      toast.error("Gagal memperbarui ketersediaan: " + err.message);
+    }
+  };
+
   return (
-    <div className="p-4 lg:p-6">
+    <AdminPageLayout>
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-display text-2xl font-bold text-foreground">Produk</h1>
         <Button onClick={openCreate} className="rounded-full">
@@ -391,6 +438,54 @@ export default function AdminProductsPage() {
           Tambah
         </Button>
       </div>
+
+      {/* Bulk Action Bar */}
+      {products.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 mb-4 bg-card rounded-xl border border-border">
+          <div className="flex items-center gap-3">
+            <Checkbox
+              checked={products.length > 0 && selectedIds.length === products.length}
+              onCheckedChange={toggleSelectAll}
+              id="select-all-products"
+            />
+            <label htmlFor="select-all-products" className="text-sm font-medium cursor-pointer">
+              Pilih Semua ({products.length})
+            </label>
+            {selectedIds.length > 0 && (
+              <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-semibold">
+                {selectedIds.length} dipilih
+              </span>
+            )}
+          </div>
+
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkAvailability(true)}
+              >
+                Set Tersedia
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkAvailability(false)}
+              >
+                Set Habis
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                Hapus ({selectedIds.length})
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
@@ -407,7 +502,16 @@ export default function AdminProductsPage() {
       ) : (
         <div className="grid gap-3">
           {products.map((product) => (
-            <div key={product.id} className="flex gap-3 p-3 bg-card rounded-xl shadow-soft">
+            <div
+              key={product.id}
+              className={`flex items-center gap-3 p-3 bg-card rounded-xl shadow-soft ${
+                selectedIds.includes(product.id) ? "border-primary bg-primary/5 border" : ""
+              }`}
+            >
+              <Checkbox
+                checked={selectedIds.includes(product.id)}
+                onCheckedChange={() => toggleSelectOne(product.id)}
+              />
               <div className="w-16 h-16 rounded-lg overflow-hidden bg-secondary flex-shrink-0">
                 {product.image_url ? (
                   <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
@@ -448,7 +552,7 @@ export default function AdminProductsPage() {
           ))}
         </div>
       )}
-    </div>
+    </AdminPageLayout>
   );
 }
 

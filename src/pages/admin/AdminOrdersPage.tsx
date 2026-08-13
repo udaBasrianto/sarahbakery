@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/integrations/api/client";
-import { Loader2, Phone, MapPin, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Phone, MapPin, MessageCircle, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import AdminPageLayout from "./AdminPageLayout";
 
 interface OrderItem {
   id: string;
@@ -144,8 +146,54 @@ export default function AdminOrdersPage() {
     window.open(`https://wa.me/${formattedPhone}?text=Halo ${name}, terima kasih telah memesan di Sarah Bakery!`, "_blank");
   };
 
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === orders.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(orders.map((o) => o.id));
+    }
+  };
+
+  const toggleSelectOne = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+    if (!confirm(`Hapus ${selectedIds.length} pesanan yang dipilih?`)) return;
+    try {
+      for (const id of selectedIds) {
+        await apiClient.from("orders").delete().eq("id", id);
+      }
+      toast.success(`${selectedIds.length} pesanan berhasil dihapus`);
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+    } catch (err: any) {
+      toast.error("Gagal menghapus pesanan: " + err.message);
+    }
+  };
+
+  const handleBulkStatusChange = async (status: string) => {
+    if (!selectedIds.length) return;
+    try {
+      for (const id of selectedIds) {
+        await apiClient.from("orders").update({ status }).eq("id", id);
+      }
+      toast.success(`Status ${selectedIds.length} pesanan diubah ke ${status}`);
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+    } catch (err: any) {
+      toast.error("Gagal mengubah status: " + err.message);
+    }
+  };
+
   return (
-    <div className="p-4 lg:p-6">
+    <AdminPageLayout>
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-display text-2xl font-bold text-foreground">
           Pesanan
@@ -165,6 +213,64 @@ export default function AdminOrdersPage() {
         </Select>
       </div>
 
+      {/* Bulk Action Bar */}
+      {orders.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 mb-4 bg-card rounded-xl border border-border">
+          <div className="flex items-center gap-3">
+            <Checkbox
+              checked={orders.length > 0 && selectedIds.length === orders.length}
+              onCheckedChange={toggleSelectAll}
+              id="select-all-orders"
+            />
+            <label
+              htmlFor="select-all-orders"
+              className="text-sm font-medium cursor-pointer"
+            >
+              Pilih Semua ({orders.length})
+            </label>
+            {selectedIds.length > 0 && (
+              <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-semibold">
+                {selectedIds.length} dipilih
+              </span>
+            )}
+          </div>
+
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkStatusChange("processing")}
+              >
+                Set Diproses
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkStatusChange("completed")}
+              >
+                Set Selesai
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkStatusChange("cancelled")}
+              >
+                Set Dibatalkan
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                Hapus ({selectedIds.length})
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -183,14 +289,26 @@ export default function AdminOrdersPage() {
             return (
               <div
                 key={order.id}
-                className="bg-card rounded-xl shadow-soft overflow-hidden"
+                className={`bg-card rounded-xl shadow-soft overflow-hidden ${
+                  selectedIds.includes(order.id) ? "border-primary bg-primary/5 border" : ""
+                }`}
               >
                 {/* Order Header */}
                 <div
-                  className="p-4 cursor-pointer"
+                  className="p-4 cursor-pointer flex items-start gap-3"
                   onClick={() => toggleExpand(order.id)}
                 >
-                  <div className="flex items-start justify-between">
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="pt-1 flex-shrink-0"
+                  >
+                    <Checkbox
+                      checked={selectedIds.includes(order.id)}
+                      onCheckedChange={() => toggleSelectOne(order.id)}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between">
                     <div>
                       <h3 className="font-semibold text-foreground">
                         {order.customer_name}
@@ -231,6 +349,7 @@ export default function AdminOrdersPage() {
                     </p>
                   </div>
                 </div>
+              </div>
 
                 {/* Expanded Content */}
                 {isExpanded && (
@@ -357,7 +476,7 @@ export default function AdminOrdersPage() {
           })}
         </div>
       )}
-    </div>
+    </AdminPageLayout>
   );
 }
 

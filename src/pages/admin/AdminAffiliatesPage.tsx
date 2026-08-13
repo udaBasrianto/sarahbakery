@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Users, Wallet, Coins, Settings as SettingsIcon } from "lucide-react";
+import AdminPageLayout from "./AdminPageLayout";
 
 const formatRp = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
@@ -97,7 +98,7 @@ export default function AdminAffiliatesPage() {
   const pendingComm = commissions.filter(c => c.status === "pending").length;
 
   return (
-    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+    <AdminPageLayout>
       <h1 className="font-display text-2xl font-bold mb-6">Program Affiliate</h1>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
@@ -215,7 +216,7 @@ export default function AdminAffiliatesPage() {
           </div>
         </TabsContent>
       </Tabs>
-    </div>
+    </AdminPageLayout>
   );
 }
 

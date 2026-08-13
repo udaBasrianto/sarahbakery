@@ -25,6 +25,7 @@ import {
   type Appearance,
 } from "@/lib/appearance";
 import { toast } from "sonner";
+import AdminPageLayout from "./AdminPageLayout";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Nama minimal 2 karakter").max(100, "Nama maksimal 100 karakter"),
@@ -346,7 +347,7 @@ export default function AdminSettingsPage() {
       : "";
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
+    <AdminPageLayout>
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="p-2 rounded-xl bg-primary/10">
@@ -967,7 +968,7 @@ export default function AdminSettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </AdminPageLayout>
   );
 }
 
