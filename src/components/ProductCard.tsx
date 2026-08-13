@@ -5,6 +5,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
+export type ProductCardVariant = "grid" | "full" | "list";
+
 interface ProductCardProps {
   id: string;
   slug?: string | null;
@@ -21,6 +23,7 @@ interface ProductCardProps {
   isLoggedIn?: boolean;
   isPreorder?: boolean;
   preorderDays?: number | null;
+  variant?: ProductCardVariant;
 }
 
 export function ProductCard({
@@ -39,6 +42,7 @@ export function ProductCard({
   isLoggedIn = false,
   isPreorder = false,
   preorderDays,
+  variant = "grid",
 }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem);
   const [isAdded, setIsAdded] = useState(false);
@@ -67,6 +71,204 @@ export function ProductCard({
     return String(v);
   };
 
+  // 1. LIST VARIANT (Horizontal Row)
+  if (variant === "list") {
+    return (
+      <div
+        onClick={() => navigate(`/product/${slug || id}`)}
+        className="group bg-card rounded-2xl shadow-card overflow-hidden animate-fade-in hover:shadow-float transition-all duration-300 cursor-pointer p-2.5 flex items-center gap-3 border border-border/50"
+      >
+        <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
+          {isLoggedIn && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleWishlist?.(id);
+              }}
+              className="absolute top-1.5 right-1.5 z-10 w-7 h-7 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110"
+            >
+              <Heart
+                className={cn(
+                  "w-3.5 h-3.5 transition-colors",
+                  isWished ? "fill-red-500 text-red-500" : "text-muted-foreground"
+                )}
+              />
+            </button>
+          )}
+          {image_url ? (
+            <img
+              src={image_url}
+              alt={name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-3xl">
+              🥐
+            </div>
+          )}
+          {isPreorder && (
+            <span className="absolute top-1.5 left-1.5 z-10 text-[9px] font-semibold bg-amber-500 text-white px-1.5 py-0.5 rounded-full">
+              PO
+            </span>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+          <div>
+            <h3 className="font-display font-semibold text-foreground text-sm line-clamp-1 group-hover:text-primary transition-colors">
+              {name}
+            </h3>
+            {description && (
+              <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                {description}
+              </p>
+            )}
+            {reviewCount > 0 && avgRating != null && (
+              <div className="flex items-center gap-1 mt-1 text-xs">
+                <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                <span className="font-medium text-foreground">{avgRating.toFixed(1)}</span>
+                <span className="text-muted-foreground">({reviewCount})</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between mt-2 pt-1 border-t border-border/40">
+            <span className="font-bold text-primary text-sm">
+              {formatPrice(price)}
+            </span>
+            <Button
+              size="sm"
+              onClick={handleAdd}
+              disabled={isAdded}
+              className={cn(
+                "h-8 px-3 rounded-xl text-xs font-bold gap-1 transition-all duration-300",
+                isAdded
+                  ? "bg-green-500 hover:bg-green-500 text-white"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+              )}
+            >
+              {isAdded ? (
+                <>
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Ada</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Beli</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. FULL CARD VARIANT (1 Column Full Width)
+  if (variant === "full") {
+    return (
+      <div
+        onClick={() => navigate(`/product/${slug || id}`)}
+        className="group bg-card rounded-2xl shadow-card overflow-hidden animate-fade-in hover:shadow-float transition-all duration-300 cursor-pointer border border-border/50"
+      >
+        <div className="relative h-44 sm:h-56 overflow-hidden bg-secondary">
+          {isLoggedIn && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleWishlist?.(id);
+              }}
+              className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110 shadow-sm"
+            >
+              <Heart
+                className={cn(
+                  "w-4 h-4 transition-colors",
+                  isWished ? "fill-red-500 text-red-500" : "text-muted-foreground"
+                )}
+              />
+            </button>
+          )}
+          {image_url ? (
+            <img
+              src={image_url}
+              alt={name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-5xl">
+              🥐
+            </div>
+          )}
+          {isPreorder && (
+            <span className="absolute top-3 left-3 z-10 text-xs font-semibold bg-amber-500 text-white px-2.5 py-1 rounded-full shadow-soft">
+              PO · {preorderDays || "?"} Hari
+            </span>
+          )}
+        </div>
+        <div className="p-4">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-display font-bold text-foreground text-base group-hover:text-primary transition-colors">
+              {name}
+            </h3>
+            <span className="font-extrabold text-primary text-base flex-shrink-0">
+              {formatPrice(price)}
+            </span>
+          </div>
+
+          {description && (
+            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+              {description}
+            </p>
+          )}
+
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              {reviewCount > 0 && avgRating != null && (
+                <span className="flex items-center gap-1">
+                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                  <span className="font-semibold text-foreground">{avgRating.toFixed(1)}</span>
+                  <span>({reviewCount})</span>
+                </span>
+              )}
+              {soldCount != null && soldCount >= 0 && (
+                <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium">
+                  <Package className="w-3.5 h-3.5 opacity-90" />
+                  <span>{formatCompact(soldCount)} terjual</span>
+                </span>
+              )}
+            </div>
+
+            <Button
+              size="sm"
+              onClick={handleAdd}
+              disabled={isAdded}
+              className={cn(
+                "h-9 px-4 rounded-xl text-xs font-bold gap-1.5 transition-all duration-300",
+                isAdded
+                  ? "bg-green-500 hover:bg-green-500 text-white"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+              )}
+            >
+              {isAdded ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>Masuk Keranjang</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  <span>+ Tambah Keranjang</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. GRID VARIANT (Standard 2-Column Grid)
   return (
     <div
       onClick={() => navigate(`/product/${slug || id}`)}

@@ -1,19 +1,29 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/integrations/api/client";
-import { ProductCard } from "@/components/ProductCard";
+import { ProductCard, ProductCardVariant } from "@/components/ProductCard";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import { HeroSlider } from "@/components/HeroSlider";
-import { Loader2, Sparkles, ChevronRight } from "lucide-react";
+import { Loader2, Sparkles, ChevronRight, LayoutGrid, Square, List } from "lucide-react";
 import { useWishlist } from "@/hooks/useWishlist";
 import { SEO } from "@/components/SEO";
-
 import { HeaderNav } from "@/components/HeaderNav";
+import { cn } from "@/lib/utils";
 
 export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { wishlistIds, toggleWishlist, isLoggedIn } = useWishlist();
+
+  // View mode filter state: "grid" (2 kolom), "full" (1 kolom), "list" (list row)
+  const [viewMode, setViewMode] = useState<ProductCardVariant>(() => {
+    return (localStorage.getItem("sarahbakery_home_view_mode") as ProductCardVariant) || "grid";
+  });
+
+  const handleViewChange = (mode: ProductCardVariant) => {
+    setViewMode(mode);
+    localStorage.setItem("sarahbakery_home_view_mode", mode);
+  };
 
   const homeJsonLd = {
     "@context": "https://schema.org",
@@ -26,6 +36,19 @@ export default function HomePage() {
     servesCuisine: "Bakery, Cakes, Pastry, Bolu Panggang",
     description: "Toko kue dan roti spesialis yang mengedepankan kualitas tekstur dan kemurnian rasa.",
   };
+
+  // Fetch admin setting for homepage product limit
+  const { data: homeLimitSetting = "10" } = useQuery({
+    queryKey: ["setting_home_products_limit"],
+    queryFn: async () => {
+      const { data } = await apiClient
+        .from("settings")
+        .select("value")
+        .eq("key", "home_products_limit")
+        .maybeSingle();
+      return data?.value || "10";
+    },
+  });
 
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
@@ -40,7 +63,7 @@ export default function HomePage() {
   });
 
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products", selectedCategory],
+    queryKey: ["products", selectedCategory, homeLimitSetting],
     queryFn: async () => {
       let query = apiClient
         .from("products")
@@ -50,6 +73,11 @@ export default function HomePage() {
 
       if (selectedCategory) {
         query = query.eq("category_id", selectedCategory);
+      } else if (homeLimitSetting && homeLimitSetting !== "all") {
+        const limitNum = parseInt(homeLimitSetting, 10);
+        if (!isNaN(limitNum) && limitNum > 0) {
+          query = query.limit(limitNum);
+        }
       }
 
       const { data, error } = await query;
@@ -114,14 +142,73 @@ export default function HomePage() {
         />
       </section>
 
-      {/* Products */}
-      <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4">
-        <h2 className="font-display text-lg lg:text-xl font-bold text-foreground mb-4">
-          {selectedCategory
-            ? categories.find((c) => c.id === selectedCategory)?.name || "Produk"
-            : "Semua Produk"}
-        </h2>
+      {/* Products Section */}
+      <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-2 mb-12">
+        {/* Header Title + View Filter Switcher Toolbar */}
+        <div className="flex items-center justify-between mb-4 gap-2">
+          <div>
+            <h2 className="font-display text-lg lg:text-xl font-bold text-foreground">
+              {selectedCategory
+                ? categories.find((c) => c.id === selectedCategory)?.name || "Produk"
+                : "Semua Produk"}
+            </h2>
+            {homeLimitSetting !== "all" && !selectedCategory && (
+              <p className="text-[11px] text-muted-foreground">
+                Menampilkan {products.length} produk terbaru
+              </p>
+            )}
+          </div>
 
+          {/* Interactive View Mode Filter */}
+          <div className="flex items-center gap-1 bg-secondary/80 p-1 rounded-xl border border-border/60">
+            <button
+              type="button"
+              onClick={() => handleViewChange("grid")}
+              className={cn(
+                "p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all",
+                viewMode === "grid"
+                  ? "bg-card text-primary shadow-sm font-bold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="2 Kolom Grid"
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span className="hidden sm:inline">2 Kolom</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleViewChange("full")}
+              className={cn(
+                "p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all",
+                viewMode === "full"
+                  ? "bg-card text-primary shadow-sm font-bold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="1 Kolom Full Card"
+            >
+              <Square className="w-4 h-4" />
+              <span className="hidden sm:inline">1 Kolom</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleViewChange("list")}
+              className={cn(
+                "p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all",
+                viewMode === "list"
+                  ? "bg-card text-primary shadow-sm font-bold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Tampilan List Row"
+            >
+              <List className="w-4 h-4" />
+              <span className="hidden sm:inline">List</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Product Cards Container based on viewMode */}
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -132,10 +219,17 @@ export default function HomePage() {
             <p className="text-muted-foreground">Belum ada produk tersedia</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div
+            className={cn(
+              viewMode === "grid" && "grid grid-cols-2 gap-3",
+              viewMode === "full" && "grid grid-cols-1 gap-4",
+              viewMode === "list" && "flex flex-col gap-3"
+            )}
+          >
             {products.map((product) => (
               <ProductCard
                 key={product.id}
+                variant={viewMode}
                 id={product.id}
                 slug={(product as any).slug}
                 isPreorder={(product as any).is_preorder}
@@ -159,6 +253,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-
-

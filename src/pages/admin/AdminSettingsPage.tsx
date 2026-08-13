@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Settings, User, Lock, Phone, Save, Loader2, Bot, Palette, Check, Shield, Key, ExternalLink, AlertCircle, CheckCircle2, XCircle, Eye, EyeOff } from "lucide-react";
+import { Settings, User, Lock, Phone, Save, Loader2, Bot, Palette, Check, Shield, Key, ExternalLink, AlertCircle, CheckCircle2, XCircle, Eye, EyeOff, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,6 +74,48 @@ export default function AdminSettingsPage() {
   const { appearance, setAppearance, refetch: refetchAppearance } = useAppearance();
   const [draft, setDraft] = useState<Appearance>(appearance);
   const [isSavingAppearance, setIsSavingAppearance] = useState(false);
+
+  // Homepage product limit setting
+  const [homeProductsLimit, setHomeProductsLimit] = useState("10");
+  const [isSavingLimit, setIsSavingLimit] = useState(false);
+
+  useEffect(() => {
+    apiClient
+      .from("settings")
+      .select("value")
+      .eq("key", "home_products_limit")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.value) setHomeProductsLimit(data.value);
+      });
+  }, []);
+
+  const handleSaveHomeLimit = async () => {
+    setIsSavingLimit(true);
+    try {
+      const { data: existing } = await apiClient
+        .from("settings")
+        .select("id")
+        .eq("key", "home_products_limit")
+        .maybeSingle();
+
+      const { error } = existing
+        ? await apiClient
+            .from("settings")
+            .update({ value: homeProductsLimit })
+            .eq("key", "home_products_limit")
+        : await apiClient
+            .from("settings")
+            .insert({ key: "home_products_limit", value: homeProductsLimit, store_id: 1 });
+
+      if (error) throw error;
+      toast.success("Jumlah produk beranda berhasil disimpan");
+    } catch {
+      toast.error("Gagal menyimpan jumlah produk beranda");
+    } finally {
+      setIsSavingLimit(false);
+    }
+  };
 
   useEffect(() => {
     setDraft(appearance);
@@ -799,6 +841,45 @@ export default function AdminSettingsPage() {
 
         {/* Appearance Tab */}
         <TabsContent value="appearance" className="space-y-4">
+          {/* Homepage Product Limit */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LayoutGrid className="w-5 h-5 text-primary" />
+                Pengaturan Jumlah Produk di Beranda
+              </CardTitle>
+              <CardDescription>
+                Atur berapa banyak produk yang otomatis ditampilkan pada halaman Beranda utama.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <Label className="text-sm font-medium">Jumlah Produk Beranda:</Label>
+                <select
+                  value={homeProductsLimit}
+                  onChange={(e) => setHomeProductsLimit(e.target.value)}
+                  className="bg-card border border-border rounded-xl px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                >
+                  <option value="4">4 Produk</option>
+                  <option value="6">6 Produk</option>
+                  <option value="8">8 Produk</option>
+                  <option value="10">10 Produk (Default)</option>
+                  <option value="12">12 Produk</option>
+                  <option value="16">16 Produk</option>
+                  <option value="20">20 Produk</option>
+                  <option value="all">Tampilkan Semua Produk</option>
+                </select>
+                <Button onClick={handleSaveHomeLimit} disabled={isSavingLimit} size="sm" className="font-semibold">
+                  {isSavingLimit ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
+                  Simpan Jumlah
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Pelanggan di beranda tetap dapat memfilter berdasarkan kategori atau mengeklik "Lihat Semua Katalog".
+              </p>
+            </CardContent>
+          </Card>
+
           {/* Fonts */}
           <Card>
             <CardHeader>
