@@ -380,7 +380,7 @@ Dark chocolate kaya flavonoid yang baik untuk jantung, meningkatkan mood (seroto
 Keduanya adalah bintang dengan karakter berbeda. Matcha cocok untuk kue yang ingin terasa premium dan segar. Coklat cocok untuk semua kalangan dan tidak pernah salah.
 
 Di Sarah Bakery, kami menggunakan matcha ceremonial grade Uji Jepang dan dark chocolate Valrhona Prancis untuk hasil terbaik.',
-  'https://images.unsplash.com/photo-1562440499-64b9a5a5595b?w=800',
+  'https://images.unsplash.com/photo-1509365465982-25d11c17e812?w=800',
   'Matcha vs Coklat untuk Kue | Sarah Bakery',
   'Perbandingan lengkap matcha dan coklat untuk kue. Dari profil rasa, penggunaan, manfaat kesehatan, hingga tren terkini di dunia pastry.',
   'matcha vs coklat, matcha cake, coklat kue, bahan kue premium, sarah bakery',
