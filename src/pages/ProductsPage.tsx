@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { useWishlist } from "@/hooks/useWishlist";
 import { SEO } from "@/components/SEO";
 
+import { HeaderNav } from "@/components/HeaderNav";
+
 export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,8 +40,8 @@ export default function ProductsPage() {
         query = query.eq("category_id", selectedCategory);
       }
 
-      if (searchQuery) {
-        query = query.ilike("name", `%${searchQuery}%`);
+      if (searchQuery.trim()) {
+        query = query.ilike("name", `%${searchQuery.trim()}%`);
       }
 
       const { data, error } = await query;
@@ -73,25 +75,33 @@ export default function ProductsPage() {
         description="Jelajahi berbagai pilihan bolu panggang lembut, roti manis, kue kering, dan pastry segar buatan dapur Sarah Bakery."
       />
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-lg border-b border-border">
-        <div className="px-4 py-4">
-          <h1 className="font-display text-xl font-bold text-foreground mb-3">
-            Produk Kami
-          </h1>
-          <div className="relative">
+      <HeaderNav />
+
+      {/* Search Header Bar */}
+      <div className="bg-card border-b border-border py-4">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h1 className="font-display text-xl font-bold text-foreground">
+              Katalog Produk Kami
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Pilihan roti manis, kue basah, pastry & hampers hangat
+            </p>
+          </div>
+          <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Cari produk..."
+              placeholder="Cari nama kue atau roti..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 bg-secondary border-0 rounded-full"
             />
           </div>
         </div>
-      </header>
+      </div>
 
-      {/* Categories */}
-      <section className="px-4 py-3">
+      {/* Categories Filter */}
+      <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4">
         <CategoryFilter
           categories={categories}
           selectedId={selectedCategory}
@@ -99,8 +109,8 @@ export default function ProductsPage() {
         />
       </section>
 
-      {/* Products */}
-      <section className="px-4 py-2">
+      {/* Products Grid */}
+      <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-2 mb-10">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -111,7 +121,7 @@ export default function ProductsPage() {
             <p className="text-muted-foreground">Produk tidak ditemukan</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
             {products.map((product) => (
               <ProductCard
                 key={product.id}
@@ -138,6 +148,3 @@ export default function ProductsPage() {
     </div>
   );
 }
-
-
-

@@ -87,24 +87,26 @@ export default function HomePage() {
       <HeroSlider />
 
       {/* Custom Order CTA */}
-      <section className="px-4 pt-3">
+      <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-3">
         <Link
           to="/custom-order"
-          className="flex items-center gap-3 bg-gradient-to-r from-primary/20 to-accent/20 border border-primary/30 rounded-2xl p-4 shadow-soft hover:shadow-md transition"
+          className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/10 via-amber-500/10 to-primary/5 border border-primary/20 rounded-2xl hover:border-primary/40 transition-all group"
         >
-          <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-6 h-6 text-primary" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg group-hover:scale-105 transition-transform">
+              ✨
+            </div>
+            <div>
+              <p className="font-semibold text-sm text-foreground">Terima Pesanan Custom & PO Khusus</p>
+              <p className="text-xs text-muted-foreground">Tema bebas • DP 50% • Pilih tanggal pengiriman</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-display font-semibold text-foreground">Pesan Kue Custom (PO)</p>
-            <p className="text-xs text-muted-foreground">Tema bebas • DP 50% • Pilih tanggal pengambilan</p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-primary flex-shrink-0" />
+          <ChevronRight className="w-5 h-5 text-primary flex-shrink-0 group-hover:translate-x-1 transition-transform" />
         </Link>
       </section>
 
       {/* Categories */}
-      <section className="px-4 py-2">
+      <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4">
         <CategoryFilter
           categories={categories}
           selectedId={selectedCategory}
@@ -113,8 +115,8 @@ export default function HomePage() {
       </section>
 
       {/* Products */}
-      <section className="px-4 py-4">
-        <h2 className="font-display text-lg font-semibold text-foreground mb-4">
+      <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4">
+        <h2 className="font-display text-lg lg:text-xl font-bold text-foreground mb-4">
           {selectedCategory
             ? categories.find((c) => c.id === selectedCategory)?.name || "Produk"
             : "Semua Produk"}
@@ -130,7 +132,7 @@ export default function HomePage() {
             <p className="text-muted-foreground">Belum ada produk tersedia</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
             {products.map((product) => (
               <ProductCard
                 key={product.id}
