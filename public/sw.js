@@ -1,4 +1,4 @@
-const CACHE_NAME = "sarahbakery-v1";
+const CACHE_NAME = "sarahbakery-v2";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -48,8 +48,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Network-first for API requests (/api/* or backend requests)
-  if (url.pathname.startsWith("/api") || url.port === "8000") {
+  // Network-first for API requests (/api/*, /query, /auth, /rpc, /storage or backend requests)
+  if (url.pathname.startsWith("/api") || url.pathname.startsWith("/query") || url.pathname.startsWith("/auth") || url.pathname.startsWith("/rpc") || url.pathname.startsWith("/storage") || url.port === "3000" || url.port === "8000") {
     event.respondWith(
       fetch(request)
         .then((response) => {
