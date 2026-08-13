@@ -208,7 +208,7 @@ export default function AdminProductsPage() {
       description: product.description || "",
       price: product.price.toString(),
       images,
-      category_id: product.category_id || "",
+      category_id: product.category_id ? String(product.category_id) : "",
       is_available: product.is_available,
       brand: product.brand || "",
       is_preorder: !!product.is_preorder,
@@ -304,8 +304,8 @@ export default function AdminProductsPage() {
                 <SelectValue placeholder="Pilih kategori" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
+                {categories.map((cat: any) => (
+                  <SelectItem key={cat.id} value={String(cat.id)}>
                     {cat.icon} {cat.name}
                   </SelectItem>
                 ))}
