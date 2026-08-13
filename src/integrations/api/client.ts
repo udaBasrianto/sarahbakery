@@ -91,7 +91,11 @@ async function fetchApi(path: string, init: RequestInit = {}) {
 
     const text = await resp.text();
     try {
-      return JSON.parse(text);
+      const parsed = JSON.parse(text);
+      if (!resp.ok && parsed && !parsed.error) {
+        return { data: null, error: { message: parsed?.detail?.message || (typeof parsed?.detail === "string" ? parsed.detail : null) || text || `Request failed: ${resp.status}` } };
+      }
+      return parsed;
     } catch {
       return { error: { message: text || `Request failed: ${resp.status}` } };
     }

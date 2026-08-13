@@ -93,12 +93,14 @@ export default function AdminProductsPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: ProductForm) => {
+      const generatedSlug = data.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const { data: newProduct, error } = await apiClient.from("products").insert({
         name: data.name,
+        slug: generatedSlug,
         description: data.description || null,
         price: parseFloat(data.price),
         image_url: data.images[0] || null,
-        category_id: data.category_id || null,
+        category_id: data.category_id ? parseInt(data.category_id) : null,
         is_available: data.is_available,
         brand: data.brand || null,
         is_preorder: data.is_preorder,
@@ -126,7 +128,8 @@ export default function AdminProductsPage() {
       closeForm();
     },
     onError: (err: any) => {
-      toast.error("Gagal menambahkan produk: " + (err?.message || ""));
+      const msg = typeof err === "string" ? err : (err?.message || JSON.stringify(err));
+      toast.error("Gagal menambahkan produk: " + msg);
     },
   });
 

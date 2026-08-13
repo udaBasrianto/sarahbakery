@@ -1,5 +1,11 @@
--- Migration 019: Ensure all products table columns exist safely (brand, is_preorder, preorder_days, store_id, etc.)
+-- Migration 019: Ensure default store & all products table columns exist safely (brand, is_preorder, preorder_days, store_id, etc.)
 
+-- 1. Ensure default store with id=1 exists
+INSERT INTO stores (id, name, slug, status)
+VALUES (1, 'Sarah Bakery', 'sarah-bakery', 'approved')
+ON CONFLICT (id) DO NOTHING;
+
+-- 2. Add missing columns safely
 ALTER TABLE products ADD COLUMN IF NOT EXISTS brand TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS is_preorder BOOLEAN DEFAULT FALSE;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS preorder_days INTEGER DEFAULT 0;
