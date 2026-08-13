@@ -296,21 +296,19 @@ export default function AdminProductsPage() {
 
           <div>
             <Label htmlFor="category">Kategori</Label>
-            <Select
+            <select
+              id="category"
               value={form.category_id}
-              onValueChange={(value) => setForm({ ...form, category_id: value })}
+              onChange={(e) => setForm({ ...form, category_id: e.target.value })}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 mt-1 cursor-pointer"
             >
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Pilih kategori" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat: any) => (
-                  <SelectItem key={cat.id} value={String(cat.id)}>
-                    {cat.icon} {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="">-- Pilih Kategori --</option>
+              {categories.map((cat: any) => (
+                <option key={cat.id} value={String(cat.id)}>
+                  {cat.icon ? `${cat.icon} ` : ""}{cat.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
