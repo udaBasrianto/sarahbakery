@@ -371,17 +371,18 @@ INT_COLUMNS = {
 }
 
 def _coerce_int_if_needed(key: str, val: Any) -> Any:
-    if val is None:
+    if val is None or val == "":
         return None
-    if isinstance(val, str) and (key.endswith("_id") or key in INT_COLUMNS or key == "id"):
+    if isinstance(val, str):
         val_str = val.strip()
-        if not val_str:
+        if not val_str or val_str.lower() in ("null", "undefined", "none"):
             return None
-        if val_str.isdigit() or (val_str.startswith("-") and val_str[1:].isdigit()):
-            try:
-                return int(val_str)
-            except ValueError:
-                return val
+        if key.endswith("_id") or key in INT_COLUMNS or key == "id":
+            if val_str.isdigit() or (val_str.startswith("-") and val_str[1:].isdigit()):
+                try:
+                    return int(val_str)
+                except ValueError:
+                    return None
     return val
 
 
@@ -480,172 +481,179 @@ def parse_select_with_relations(base_table: str, select: str):
 
 @app.post("/query")
 async def query_endpoint(request: QueryRequest):
-    pool = await open_pool()
-    table = request.table
-    select = request.select
-    conditions = []
-    args = []
-    arg_idx = 0
+    try:
+        pool = await open_pool()
+        table = request.table
+        select = request.select
+        conditions = []
+        args = []
+        arg_idx = 0
 
-    def next_arg(val: Any, col_for_int: Optional[str] = None) -> int:
-        nonlocal arg_idx, args
-        arg_idx += 1
-        if col_for_int is not None:
-            val = _coerce_int_if_needed(col_for_int, val)
-        args.append(val)
-        return arg_idx
+        def next_arg(val: Any, col_for_int: Optional[str] = None) -> int:
+            nonlocal arg_idx, args
+            arg_idx += 1
+            if col_for_int is not None:
+                val = _coerce_int_if_needed(col_for_int, val)
+            args.append(val)
+            return arg_idx
 
-    for filter_item in request.filters:
-        field_safe = filter_item.get_field()
-        bare_field = field_safe.split(".")[-1].strip('"')
-        if "." not in field_safe:
-            field_safe = f'"{table}"."{field_safe}"'
-        val = filter_item.value
-        fop = filter_item.get_operator()
-        if fop == "eq":
-            i = next_arg(val, bare_field)
-            conditions.append(f"{field_safe} = ${i}")
-        elif fop == "ilike":
-            i = next_arg(val, None)
-            conditions.append(f"{field_safe} ILIKE ${i}")
-        elif fop == "in":
-            i = next_arg(val, bare_field)
-            conditions.append(f"{field_safe} = ANY(${i})")
-        elif fop == "neq":
-            i = next_arg(val, bare_field)
-            conditions.append(f"{field_safe} <> ${i}")
-        elif fop == "gt":
-            i = next_arg(val, bare_field)
-            conditions.append(f"{field_safe} > ${i}")
-        elif fop == "gte":
-            i = next_arg(val, bare_field)
-            conditions.append(f"{field_safe} >= ${i}")
-        elif fop == "lt":
-            i = next_arg(val, bare_field)
-            conditions.append(f"{field_safe} < ${i}")
-        elif fop == "lte":
-            i = next_arg(val, bare_field)
-            conditions.append(f"{field_safe} <= ${i}")
-        elif fop == "is":
-            i = next_arg(val, None)
-            conditions.append(f"{field_safe} IS ${i}")
-        else:
-            raise HTTPException(status_code=400, detail={"message": f"Unsupported filter operator: {fop}"})
-
-    table_safe = re.sub(r"[^a-zA-Z0-9_]", "", table)
-
-    parsed = parse_select_with_relations(table_safe, "*" if request.count == "exact" else select)
-    select_expr = parsed["select_expr"]
-    from_clause = parsed["from_clause"]
-    join_clauses = parsed["join_clauses"]
-
-    if request.count == "exact":
-        select_expr = "COUNT(*)"
-
-    query = f"SELECT {select_expr} FROM {from_clause}"
-    if join_clauses:
-        query += f" {join_clauses}"
-    if conditions:
-        query += " WHERE " + " AND ".join(conditions)
-    if request.order and not request.count:
-        col_safe = request.order.get_column() if hasattr(request.order, "get_column") else (request.order.column or request.order.field or "")
-        if col_safe and "." not in col_safe:
-            col_safe = f'"{table_safe}"."{col_safe}"'
-        if col_safe:
-            query += f" ORDER BY {col_safe} {'ASC' if request.order.ascending else 'DESC'}"
-    if request.limit is not None and not request.count:
-        query += f" LIMIT {request.limit}"
-
-    if request.operation == "GET":
-        if request.count and request.head:
-            row = await fetch_one(pool, query, *args)
-            return {"data": None, "error": None, "count": int(row[0]) if row else 0}
-        if request.single or request.maybeSingle:
-            row = await fetch_one(pool, query, *args)
-            data = _clean_relation_row(dict(row), parsed) if row else None
-            return {"data": data, "error": None}
-        rows = await fetch_all(pool, query, *args)
-        result = [_clean_relation_row(dict(r), parsed) for r in rows]
-        return {"data": result, "error": None}
-    elif request.operation == "POST":
-        if not request.data:
-            raise HTTPException(status_code=400, detail={"message": "Missing request data"})
-        keys = list(request.data.keys())
-        post_values = [_coerce_int_if_needed(k, v) for k, v in request.data.items()]
-        placeholders = ", ".join(f"${i}" for i in range(1, len(keys) + 1))
-        row = await fetch_one(pool, f"INSERT INTO {table_safe} ({', '.join(keys)}) VALUES ({placeholders}) RETURNING *", *post_values)
-        data = dict(row) if row else None
-        return {"data": data, "error": None}
-    elif request.operation == "PATCH":
-        if not request.data:
-            raise HTTPException(status_code=400, detail={"message": "Missing request data"})
-        if not conditions:
-            raise HTTPException(status_code=400, detail={"message": "Update requires a filter"})
-        set_keys = list(request.data.keys())
-        set_args = [_coerce_int_if_needed(k, v) for k, v in request.data.items()]
-        set_clause_parts = []
-        patch_arglist = []
-        # Allocate $1..$N = SET values
-        local_idx = 0
-        def patch_next(v: Any) -> int:
-            nonlocal local_idx, patch_arglist
-            local_idx += 1
-            patch_arglist.append(v)
-            return local_idx
-        for k in set_keys:
-            i = patch_next(set_args[set_keys.index(k)])
-            set_clause_parts.append(f'"{k}" = ${i}')
-        # Re-emit filter conditions with placeholder CONTINUED from local_idx
-        patch_conditions = []
         for filter_item in request.filters:
             field_safe = filter_item.get_field()
             bare_field = field_safe.split(".")[-1].strip('"')
             if "." not in field_safe:
-                field_safe = f'"{table_safe}"."{field_safe}"'
-            val = _coerce_int_if_needed(bare_field, filter_item.value)
-            op = filter_item.get_operator()
-            if op == "eq":
-                i = patch_next(val)
-                patch_conditions.append(f"{field_safe} = ${i}")
-            elif op == "ilike":
-                i = patch_next(val)
-                patch_conditions.append(f"{field_safe} ILIKE ${i}")
-            elif op == "in":
-                i = patch_next(val)
-                patch_conditions.append(f"{field_safe} = ANY(${i})")
-            elif op == "neq":
-                i = patch_next(val)
-                patch_conditions.append(f"{field_safe} <> ${i}")
-            elif op == "gt":
-                i = patch_next(val)
-                patch_conditions.append(f"{field_safe} > ${i}")
-            elif op == "gte":
-                i = patch_next(val)
-                patch_conditions.append(f"{field_safe} >= ${i}")
-            elif op == "lt":
-                i = patch_next(val)
-                patch_conditions.append(f"{field_safe} < ${i}")
-            elif op == "lte":
-                i = patch_next(val)
-                patch_conditions.append(f"{field_safe} <= ${i}")
-            elif op == "is":
-                i = patch_next(val)
-                patch_conditions.append(f"{field_safe} IS ${i}")
+                field_safe = f'"{table}"."{field_safe}"'
+            val = filter_item.value
+            fop = filter_item.get_operator()
+            if fop == "eq":
+                i = next_arg(val, bare_field)
+                conditions.append(f"{field_safe} = ${i}")
+            elif fop == "ilike":
+                i = next_arg(val, None)
+                conditions.append(f"{field_safe} ILIKE ${i}")
+            elif fop == "in":
+                i = next_arg(val, bare_field)
+                conditions.append(f"{field_safe} = ANY(${i})")
+            elif fop == "neq":
+                i = next_arg(val, bare_field)
+                conditions.append(f"{field_safe} <> ${i}")
+            elif fop == "gt":
+                i = next_arg(val, bare_field)
+                conditions.append(f"{field_safe} > ${i}")
+            elif fop == "gte":
+                i = next_arg(val, bare_field)
+                conditions.append(f"{field_safe} >= ${i}")
+            elif fop == "lt":
+                i = next_arg(val, bare_field)
+                conditions.append(f"{field_safe} < ${i}")
+            elif fop == "lte":
+                i = next_arg(val, bare_field)
+                conditions.append(f"{field_safe} <= ${i}")
+            elif fop == "is":
+                i = next_arg(val, None)
+                conditions.append(f"{field_safe} IS ${i}")
             else:
-                raise HTTPException(status_code=400, detail={"message": f"Unsupported filter operator: {op}"})
-        await execute(
-            pool,
-            f"UPDATE {table_safe} SET {', '.join(set_clause_parts)} WHERE {' AND '.join(patch_conditions)}",
-            *patch_arglist,
-        )
-        return {"data": None, "error": None}
-    elif request.operation == "DELETE":
-        if not conditions:
-            raise HTTPException(status_code=400, detail={"message": "Delete requires a filter"})
-        await execute(pool, f"DELETE FROM {table_safe} WHERE {' AND '.join(conditions)}", *args)
-        return {"data": None, "error": None}
-    else:
-        raise HTTPException(status_code=400, detail={"message": f"Unsupported operation: {request.operation}"})
+                raise HTTPException(status_code=400, detail={"message": f"Unsupported filter operator: {fop}"})
+
+        table_safe = re.sub(r"[^a-zA-Z0-9_]", "", table)
+
+        parsed = parse_select_with_relations(table_safe, "*" if request.count == "exact" else select)
+        select_expr = parsed["select_expr"]
+        from_clause = parsed["from_clause"]
+        join_clauses = parsed["join_clauses"]
+
+        if request.count == "exact":
+            select_expr = "COUNT(*)"
+
+        query = f"SELECT {select_expr} FROM {from_clause}"
+        if join_clauses:
+            query += f" {join_clauses}"
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        if request.order and not request.count:
+            col_safe = request.order.get_column() if hasattr(request.order, "get_column") else (request.order.column or request.order.field or "")
+            if col_safe and "." not in col_safe:
+                col_safe = f'"{table_safe}"."{col_safe}"'
+            if col_safe:
+                query += f" ORDER BY {col_safe} {'ASC' if request.order.ascending else 'DESC'}"
+        if request.limit is not None and not request.count:
+            query += f" LIMIT {request.limit}"
+
+        if request.operation == "GET":
+            if request.count and request.head:
+                row = await fetch_one(pool, query, *args)
+                return {"data": None, "error": None, "count": int(row[0]) if row else 0}
+            if request.single or request.maybeSingle:
+                row = await fetch_one(pool, query, *args)
+                data = _clean_relation_row(dict(row), parsed) if row else None
+                return {"data": data, "error": None}
+            rows = await fetch_all(pool, query, *args)
+            result = [_clean_relation_row(dict(r), parsed) for r in rows]
+            return {"data": result, "error": None}
+        elif request.operation == "POST":
+            if not request.data:
+                raise HTTPException(status_code=400, detail={"message": "Missing request data"})
+            keys = list(request.data.keys())
+            post_values = [_coerce_int_if_needed(k, v) for k, v in request.data.items()]
+            quoted_keys = [f'"{k}"' for k in keys]
+            placeholders = ", ".join(f"${i}" for i in range(1, len(keys) + 1))
+            row = await fetch_one(pool, f'INSERT INTO "{table_safe}" ({", ".join(quoted_keys)}) VALUES ({placeholders}) RETURNING *', *post_values)
+            data = dict(row) if row else None
+            return {"data": data, "error": None}
+        elif request.operation == "PATCH":
+            if not request.data:
+                raise HTTPException(status_code=400, detail={"message": "Missing request data"})
+            if not conditions:
+                raise HTTPException(status_code=400, detail={"message": "Update requires a filter"})
+            set_keys = list(request.data.keys())
+            set_args = [_coerce_int_if_needed(k, v) for k, v in request.data.items()]
+            set_clause_parts = []
+            patch_arglist = []
+            local_idx = 0
+            def patch_next(v: Any) -> int:
+                nonlocal local_idx, patch_arglist
+                local_idx += 1
+                patch_arglist.append(v)
+                return local_idx
+            for k in set_keys:
+                i = patch_next(set_args[set_keys.index(k)])
+                set_clause_parts.append(f'"{k}" = ${i}')
+            patch_conditions = []
+            for filter_item in request.filters:
+                field_safe = filter_item.get_field()
+                bare_field = field_safe.split(".")[-1].strip('"')
+                if "." not in field_safe:
+                    field_safe = f'"{table_safe}"."{field_safe}"'
+                val = _coerce_int_if_needed(bare_field, filter_item.value)
+                op = filter_item.get_operator()
+                if op == "eq":
+                    i = patch_next(val)
+                    patch_conditions.append(f"{field_safe} = ${i}")
+                elif op == "ilike":
+                    i = patch_next(val)
+                    patch_conditions.append(f"{field_safe} ILIKE ${i}")
+                elif op == "in":
+                    i = patch_next(val)
+                    patch_conditions.append(f"{field_safe} = ANY(${i})")
+                elif op == "neq":
+                    i = patch_next(val)
+                    patch_conditions.append(f"{field_safe} <> ${i}")
+                elif op == "gt":
+                    i = patch_next(val)
+                    patch_conditions.append(f"{field_safe} > ${i}")
+                elif op == "gte":
+                    i = patch_next(val)
+                    patch_conditions.append(f"{field_safe} >= ${i}")
+                elif op == "lt":
+                    i = patch_next(val)
+                    patch_conditions.append(f"{field_safe} < ${i}")
+                elif op == "lte":
+                    i = patch_next(val)
+                    patch_conditions.append(f"{field_safe} <= ${i}")
+                elif op == "is":
+                    i = patch_next(val)
+                    patch_conditions.append(f"{field_safe} IS ${i}")
+                else:
+                    raise HTTPException(status_code=400, detail={"message": f"Unsupported filter operator: {op}"})
+            await execute(
+                pool,
+                f'UPDATE "{table_safe}" SET {", ".join(set_clause_parts)} WHERE {" AND ".join(patch_conditions)}',
+                *patch_arglist,
+            )
+            return {"data": None, "error": None}
+        elif request.operation == "DELETE":
+            if not conditions:
+                raise HTTPException(status_code=400, detail={"message": "Delete requires a filter"})
+            await execute(pool, f'DELETE FROM "{table_safe}" WHERE {" AND ".join(conditions)}', *args)
+            return {"data": None, "error": None}
+        else:
+            raise HTTPException(status_code=400, detail={"message": f"Unsupported operation: {request.operation}"})
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print(f"[Query Error] Table: {request.table}, Data: {request.data}, Error: {exc}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=400, content={"data": None, "error": {"message": f"{type(exc).__name__}: {str(exc)}"}})
 
 @app.post("/rpc/{name}")
 async def rpc_endpoint(name: str, params: dict = {}):
