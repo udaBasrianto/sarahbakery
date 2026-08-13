@@ -9,6 +9,8 @@ import { Loader2, Sparkles, ChevronRight } from "lucide-react";
 import { useWishlist } from "@/hooks/useWishlist";
 import { SEO } from "@/components/SEO";
 
+import { HeaderNav } from "@/components/HeaderNav";
+
 export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { wishlistIds, toggleWishlist, isLoggedIn } = useWishlist();
@@ -79,23 +81,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-background pb-safe">
       <SEO jsonLd={homeJsonLd} />
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-lg border-b border-border">
-        <div className="px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-2xl">
-              🧁
-            </div>
-            <div>
-              <h1 className="font-display text-xl font-bold text-foreground">
-                Sarah Bakery
-              </h1>
-              <p className="text-xs text-muted-foreground">
-                Roti & Kue Segar Setiap Hari
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
+      <HeaderNav />
 
       {/* Hero Slider */}
       <HeroSlider />
