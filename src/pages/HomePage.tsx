@@ -5,7 +5,7 @@ import { apiClient } from "@/integrations/api/client";
 import { ProductCard, ProductCardVariant } from "@/components/ProductCard";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import { HeroSlider } from "@/components/HeroSlider";
-import { Loader2, Sparkles, ChevronRight, LayoutGrid, Square, List } from "lucide-react";
+import { Loader2, Sparkles, ChevronRight, LayoutGrid, Columns2, List } from "lucide-react";
 import { useWishlist } from "@/hooks/useWishlist";
 import { SEO } from "@/components/SEO";
 import { HeaderNav } from "@/components/HeaderNav";
@@ -159,51 +159,48 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* Interactive View Mode Filter */}
-          <div className="flex items-center gap-1 bg-secondary/80 p-1 rounded-xl border border-border/60">
+          {/* Interactive View Mode Filter pill matching screenshot design */}
+          <div className="flex items-center gap-1 bg-emerald-50/90 dark:bg-emerald-950/40 px-1 py-1 rounded-full border border-emerald-100/70 dark:border-emerald-900/50 shadow-inner">
             <button
               type="button"
               onClick={() => handleViewChange("grid")}
               className={cn(
-                "p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all",
+                "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300",
                 viewMode === "grid"
-                  ? "bg-card text-primary shadow-sm font-bold"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-white dark:bg-card text-emerald-800 dark:text-emerald-300 shadow-md scale-105"
+                  : "text-emerald-700/70 hover:text-emerald-900 dark:text-emerald-400/70"
               )}
-              title="2 Kolom Grid"
+              title="Tampilan 2 Kolom Grid"
             >
               <LayoutGrid className="w-4 h-4" />
-              <span className="hidden sm:inline">2 Kolom</span>
             </button>
 
             <button
               type="button"
               onClick={() => handleViewChange("full")}
               className={cn(
-                "p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all",
+                "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300",
                 viewMode === "full"
-                  ? "bg-card text-primary shadow-sm font-bold"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-white dark:bg-card text-emerald-800 dark:text-emerald-300 shadow-md scale-105"
+                  : "text-emerald-700/70 hover:text-emerald-900 dark:text-emerald-400/70"
               )}
-              title="1 Kolom Full Card"
+              title="Tampilan 1 Kolom Full"
             >
-              <Square className="w-4 h-4" />
-              <span className="hidden sm:inline">1 Kolom</span>
+              <Columns2 className="w-4 h-4" />
             </button>
 
             <button
               type="button"
               onClick={() => handleViewChange("list")}
               className={cn(
-                "p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all",
+                "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300",
                 viewMode === "list"
-                  ? "bg-card text-primary shadow-sm font-bold"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-white dark:bg-card text-emerald-800 dark:text-emerald-300 shadow-md scale-105"
+                  : "text-emerald-700/70 hover:text-emerald-900 dark:text-emerald-400/70"
               )}
               title="Tampilan List Row"
             >
               <List className="w-4 h-4" />
-              <span className="hidden sm:inline">List</span>
             </button>
           </div>
         </div>
