@@ -12,9 +12,9 @@ export const PWAInstallPrompt: React.FC = () => {
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
-    // 1) Register Service Worker
+    // 1) Register Service Worker safely
     if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
+      const registerSW = () => {
         navigator.serviceWorker
           .register("/sw.js")
           .then((reg) => {
@@ -23,7 +23,13 @@ export const PWAInstallPrompt: React.FC = () => {
           .catch((err) => {
             console.error("[PWA] Service Worker registration failed:", err);
           });
-      });
+      };
+
+      if (document.readyState === "complete") {
+        registerSW();
+      } else {
+        window.addEventListener("load", registerSW, { once: true });
+      }
     }
 
     // 2) Listen for beforeinstallprompt event
