@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, ShoppingBag, CheckCheck, ChevronRight, Sparkles, Truck, Tag } from "lucide-react";
+import { Bell, ShoppingBag, CheckCheck, ChevronRight, Sparkles, Truck, Tag, Plus, Minus, Trash2, Loader2 } from "lucide-react";
 import { useCartStore } from "@/lib/store";
+import { apiClient } from "@/integrations/api/client";
 import {
   Popover,
   PopoverContent,
@@ -9,69 +10,93 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
-interface NotificationItem {
-  id: string;
+interface DBNotification {
+  id: number;
+  user_id: number | null;
   title: string;
-  description: string;
-  time: string;
-  icon: any;
-  link?: string;
-  read: boolean;
+  description: string | null;
+  type: string | null;
+  link_url: string | null;
+  is_read: boolean;
+  created_at: string;
 }
-
-const initialNotifications: NotificationItem[] = [
-  {
-    id: "1",
-    title: "Promo Roti Manis Fresh 30%",
-    description: "Nikmati diskon 30% untuk semua varian roti manis dipanggang jam 6 pagi!",
-    time: "Baru saja",
-    icon: Tag,
-    link: "/products",
-    read: false,
-  },
-  {
-    id: "2",
-    title: "Custom Birthday Cake",
-    description: "Terima pesanan kue ulang tahun custom bebas pilih desain & rasa.",
-    time: "2 jam lalu",
-    icon: Sparkles,
-    link: "/custom-order",
-    read: false,
-  },
-  {
-    id: "3",
-    title: "Gratis Ongkir Kota",
-    description: "Pengiriman gratis untuk seluruh transaksi minimal Rp 150.000.",
-    time: "1 hari lalu",
-    icon: Truck,
-    link: "/products",
-    read: false,
-  },
-];
 
 const formatRp = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
 
+const getTypeIcon = (type: string | null) => {
+  switch (type) {
+    case "promo":
+      return Tag;
+    case "system":
+      return Sparkles;
+    case "order":
+      return Truck;
+    default:
+      return Sparkles;
+  }
+};
+
 export function HeaderNav() {
   const navigate = useNavigate();
-  const { items, getTotalItems, getTotalPrice } = useCartStore();
+  const { items, updateQuantity, removeItem, getTotalItems, getTotalPrice } = useCartStore();
   const totalItems = getTotalItems();
   const totalPrice = getTotalPrice();
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const [notifications, setNotifications] = useState<DBNotification[]>([]);
+  const [isLoadingNotifs, setIsLoadingNotifs] = useState(false);
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const fetchNotifications = async () => {
+    setIsLoadingNotifs(true);
+    try {
+      const { data, error } = await apiClient
+        .from("notifications")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (data) {
+        setNotifications(data as DBNotification[]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    } finally {
+      setIsLoadingNotifs(false);
+    }
   };
 
-  const markOneAsRead = (id: string, link?: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-    if (link) {
-      navigate(link);
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  const markAllAsRead = async () => {
+    try {
+      // Optimistic update
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+
+      const unreadIds = notifications.filter((n) => !n.is_read).map((n) => n.id);
+      for (const id of unreadIds) {
+        await apiClient.from("notifications").update({ is_read: true }).eq("id", id);
+      }
+      toast.success("Semua notifikasi ditandai dibaca");
+    } catch (err) {
+      console.error("Failed to mark notifications as read:", err);
+    }
+  };
+
+  const markOneAsRead = async (n: DBNotification) => {
+    if (!n.is_read) {
+      setNotifications((prev) =>
+        prev.map((item) => (item.id === n.id ? { ...item, is_read: true } : item))
+      );
+      await apiClient.from("notifications").update({ is_read: true }).eq("id", n.id);
+    }
+    if (n.link_url) {
+      navigate(n.link_url);
     }
   };
 
@@ -95,7 +120,7 @@ export function HeaderNav() {
 
         {/* Header Right Actions */}
         <div className="flex items-center gap-2">
-          {/* 1. Notification Popover */}
+          {/* 1. Live Notification Popover */}
           <Popover>
             <PopoverTrigger asChild>
               <button
@@ -105,8 +130,8 @@ export function HeaderNav() {
               >
                 <Bell className="w-5 h-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-4 h-4 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
-                    {unreadCount}
+                  <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                    {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
               </button>
@@ -118,7 +143,7 @@ export function HeaderNav() {
               <div className="p-3 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Bell className="w-4 h-4 text-primary" />
-                  <h4 className="font-semibold text-sm">Notifikasi</h4>
+                  <h4 className="font-semibold text-sm">Notifikasi Langsung</h4>
                   {unreadCount > 0 && (
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
                       {unreadCount} baru
@@ -132,26 +157,31 @@ export function HeaderNav() {
                     onClick={markAllAsRead}
                     className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
                   >
-                    <CheckCheck className="w-3.5 h-3.5 mr-1" />
+                    <CheckCheck className="w-3.5 h-3.5 mr-1 text-primary" />
                     Dibaca
                   </Button>
                 )}
               </div>
 
               <div className="max-h-72 overflow-y-auto divide-y divide-border">
-                {notifications.length === 0 ? (
+                {isLoadingNotifs ? (
+                  <div className="p-6 flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary mr-2" />
+                    <span className="text-xs text-muted-foreground">Memuat notifikasi...</span>
+                  </div>
+                ) : notifications.length === 0 ? (
                   <div className="p-6 text-center text-xs text-muted-foreground">
-                    Tidak ada notifikasi
+                    Belum ada notifikasi
                   </div>
                 ) : (
                   notifications.map((n) => {
-                    const IconComponent = n.icon;
+                    const IconComponent = getTypeIcon(n.type);
                     return (
                       <div
                         key={n.id}
-                        onClick={() => markOneAsRead(n.id, n.link)}
+                        onClick={() => markOneAsRead(n)}
                         className={`p-3 flex items-start gap-3 cursor-pointer transition-colors hover:bg-muted/50 ${
-                          !n.read ? "bg-primary/5" : ""
+                          !n.is_read ? "bg-primary/5" : ""
                         }`}
                       >
                         <div className="p-2 rounded-xl bg-primary/10 text-primary flex-shrink-0 mt-0.5">
@@ -162,13 +192,15 @@ export function HeaderNav() {
                             <p className="text-xs font-semibold text-foreground truncate">
                               {n.title}
                             </p>
-                            <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                              {n.time}
-                            </span>
+                            {!n.is_read && (
+                              <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                            )}
                           </div>
-                          <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
-                            {n.description}
-                          </p>
+                          {n.description && (
+                            <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
+                              {n.description}
+                            </p>
+                          )}
                         </div>
                       </div>
                     );
@@ -187,7 +219,7 @@ export function HeaderNav() {
             </PopoverContent>
           </Popover>
 
-          {/* 2. Cart / Bags Popover */}
+          {/* 2. Fully Functional Live Cart Popover */}
           <Popover>
             <PopoverTrigger asChild>
               <button
@@ -217,7 +249,7 @@ export function HeaderNav() {
                 </Badge>
               </div>
 
-              <div className="max-h-64 overflow-y-auto divide-y divide-border">
+              <div className="max-h-72 overflow-y-auto divide-y divide-border">
                 {items.length === 0 ? (
                   <div className="p-6 text-center">
                     <p className="text-3xl mb-2">🛍️</p>
@@ -228,9 +260,9 @@ export function HeaderNav() {
                       size="sm"
                       variant="link"
                       onClick={() => navigate("/products")}
-                      className="mt-1 text-xs"
+                      className="mt-1 text-xs text-primary"
                     >
-                      Mulai Belanja
+                      Mulai Belanja Now
                     </Button>
                   </div>
                 ) : (
@@ -240,10 +272,10 @@ export function HeaderNav() {
                         <img
                           src={item.image_url}
                           alt={item.name}
-                          className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                          className="w-11 h-11 rounded-xl object-cover border border-border flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center text-lg flex-shrink-0">
+                        <div className="w-11 h-11 rounded-xl bg-secondary flex items-center justify-center text-xl flex-shrink-0">
                           🥐
                         </div>
                       )}
@@ -251,11 +283,48 @@ export function HeaderNav() {
                         <p className="text-xs font-semibold text-foreground truncate">
                           {item.name}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {item.quantity} x {formatRp(Number(item.price))}
+                        <p className="text-[11px] text-primary font-bold mt-0.5">
+                          {formatRp(Number(item.price))}
                         </p>
+
+                        {/* Interactive Quantity Controls */}
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center border border-border rounded-lg bg-secondary/30 overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (item.quantity <= 1) {
+                                  removeItem(item.id);
+                                } else {
+                                  updateQuantity(item.id, item.quantity - 1);
+                                }
+                              }}
+                              className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-6 text-center text-xs font-semibold">
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeItem(item.id)}
+                            className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                            title="Hapus"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                      <p className="text-xs font-bold text-primary flex-shrink-0">
+                      <p className="text-xs font-bold text-foreground flex-shrink-0 self-end mb-1">
                         {formatRp(Number(item.price) * item.quantity)}
                       </p>
                     </div>
@@ -264,7 +333,7 @@ export function HeaderNav() {
               </div>
 
               {items.length > 0 && (
-                <div className="p-3 border-t border-border space-y-2 bg-muted/30">
+                <div className="p-3 border-t border-border space-y-2.5 bg-muted/30">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground font-medium">Total Harga:</span>
                     <span className="font-bold text-sm text-primary">
@@ -278,14 +347,14 @@ export function HeaderNav() {
                       onClick={() => navigate("/cart")}
                       className="w-full text-xs rounded-xl"
                     >
-                      Lihat Detail
+                      Lihat Keranjang
                     </Button>
                     <Button
                       size="sm"
                       onClick={() => navigate("/cart")}
-                      className="w-full text-xs rounded-xl"
+                      className="w-full text-xs rounded-xl font-bold"
                     >
-                      Checkout
+                      Checkout ({totalItems})
                     </Button>
                   </div>
                 </div>
