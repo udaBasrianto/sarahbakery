@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Bell, ShoppingBag, CheckCheck, ChevronRight, Sparkles, Truck, Tag, Plus, Minus, Trash2, Loader2, User } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Bell, ShoppingBag, CheckCheck, ChevronRight, Sparkles, Truck, Tag, Plus, Minus, Trash2, Loader2 } from "lucide-react";
 import { useCartStore } from "@/lib/store";
 import { apiClient } from "@/integrations/api/client";
 import {
@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface DBNotification {
@@ -40,36 +39,14 @@ const getTypeIcon = (type: string | null) => {
   }
 };
 
-const desktopNavLinks = [
-  { label: "Beranda", path: "/" },
-  { label: "Katalog Produk", path: "/products" },
-  { label: "Kue Custom", path: "/custom-order" },
-  { label: "Blog", path: "/blog" },
-  { label: "Afiliasi", path: "/affiliate" },
-];
-
 export function HeaderNav() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { items, updateQuantity, removeItem, getTotalItems, getTotalPrice } = useCartStore();
   const totalItems = getTotalItems();
   const totalPrice = getTotalPrice();
 
   const [notifications, setNotifications] = useState<DBNotification[]>([]);
   const [isLoadingNotifs, setIsLoadingNotifs] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    const { data: { subscription } } = apiClient.auth.onAuthStateChange((event, session) => {
-      setIsLoggedIn(!!session);
-    });
-
-    apiClient.auth.getSession().then(({ data: { session } }) => {
-      setIsLoggedIn(!!session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   const fetchNotifications = async () => {
     setIsLoadingNotifs(true);
@@ -123,10 +100,9 @@ export function HeaderNav() {
 
   return (
     <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-lg border-b border-border shadow-sm">
-      <div className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
-        
+      <div className="px-4 py-3 max-w-md mx-auto flex items-center justify-between">
         {/* Brand / Logo */}
-        <Link to="/" className="flex items-center gap-3 group flex-shrink-0">
+        <Link to="/" className="flex items-center gap-3 group">
           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-2xl shadow-soft group-hover:scale-105 transition-transform">
             🧁
           </div>
@@ -134,44 +110,14 @@ export function HeaderNav() {
             <h1 className="font-display text-lg font-bold text-foreground leading-tight group-hover:text-primary transition-colors">
               Sarah Bakery
             </h1>
-            <p className="text-[11px] text-muted-foreground hidden sm:block">
+            <p className="text-[11px] text-muted-foreground">
               Roti & Kue Segar Setiap Hari
             </p>
           </div>
         </Link>
 
-        {/* Tablet & Desktop Center Nav Links */}
-        <nav className="hidden md:flex items-center gap-1 lg:gap-2">
-          {desktopNavLinks.map((link) => {
-            const isActive = location.pathname === link.path;
-            return (
-              <Link
-                key={link.path}
-                to={link.path}
-                className={cn(
-                  "px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200",
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                )}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
-        </nav>
-
         {/* Header Right Actions */}
         <div className="flex items-center gap-2">
-          {/* Desktop User Account Button */}
-          <Link
-            to={isLoggedIn ? "/dashboard" : "/auth"}
-            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-secondary hover:bg-secondary/80 text-foreground transition-colors border border-border/50"
-          >
-            <User className="w-3.5 h-3.5 text-primary" />
-            <span>{isLoggedIn ? "Akun Saya" : "Masuk"}</span>
-          </Link>
-
           {/* 1. Live Notification Popover */}
           <Popover>
             <PopoverTrigger asChild>
