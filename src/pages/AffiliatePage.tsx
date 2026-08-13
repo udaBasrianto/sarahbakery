@@ -84,16 +84,16 @@ export default function AffiliatePage() {
     setAffiliate(aff as Affiliate | null);
     setSettings(stg as Settings | null);
     if (aff) {
-      const [{ data: c }, { data: w }, { data: t }, { data: r }] = await Promise.all([
+      const [{ data: c }, { data: w }, { data: t }] = await Promise.all([
         apiClient.from("affiliate_commissions").select("*").eq("affiliate_id", aff.id).order("created_at", { ascending: false }).limit(20),
         apiClient.from("affiliate_withdrawals").select("*").eq("affiliate_id", aff.id).order("created_at", { ascending: false }).limit(20),
-        apiClient.from("point_transactions").select("*").eq("affiliate_id", aff.id).order("created_at", { ascending: false }).limit(20),
-        apiClient.from("referrals").select("*").eq("affiliate_id", aff.id).order("created_at", { ascending: false }).limit(20),
+        // point_transactions uses user_id (not affiliate_id)
+        apiClient.from("point_transactions").select("*").eq("user_id", aff.user_id).order("created_at", { ascending: false }).limit(20),
       ]);
       setCommissions(c || []);
       setWithdrawals(w || []);
       setTransactions(t || []);
-      setReferrals(r || []);
+      setReferrals([]);
     }
     setLoading(false);
   };
@@ -144,7 +144,7 @@ export default function AffiliatePage() {
     if (!affiliate || !settings) return;
     const pts = parseInt(wdPoints, 10);
     if (!pts || pts <= 0) return toast.error("Jumlah poin tidak valid");
-    if (pts > affiliate.total_points) return toast.error("Poin tidak mencukupi");
+    if (pts > (affiliate.total_points ?? 0)) return toast.error("Poin tidak mencukupi");
     if (pts < settings.min_withdraw_points) return toast.error(`Minimum ${settings.min_withdraw_points} poin`);
     if (!wdMethod || !wdAccount.trim() || !wdName.trim()) return toast.error("Lengkapi data pembayaran");
 
