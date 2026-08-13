@@ -164,18 +164,22 @@ class QueryFilter(BaseModel):
     def get_operator(self) -> str:
         return self.operator or self.op or ""
 
-INT_FIELD_RE = re.compile(r"(^id$|_id$|_id_fk$)", re.IGNORECASE)
+INT_FIELD_RE = re.compile(r"(^id$|_id$|_id_fk$|stock|view_count|sold_count|review_count|sort_order|preorder_days|shelf_life_days|quantity|store_id|category_id)", re.IGNORECASE)
 
 def _coerce_int_if_needed(field_name: str, value: Any) -> Any:
-    if isinstance(value, str) and INT_FIELD_RE.search(field_name):
-        if value == "" or value.lower() in ("null", "none"):
+    if value is None or value == "":
+        return None
+    if isinstance(value, str):
+        val_str = value.strip()
+        if not val_str or val_str.lower() in ("null", "undefined", "none"):
             return None
-        try:
-            if "." in value:
-                return int(float(value))
-            return int(value)
-        except (ValueError, TypeError):
-            return value
+        if INT_FIELD_RE.search(field_name):
+            try:
+                if "." in val_str:
+                    return int(float(val_str))
+                return int(val_str)
+            except (ValueError, TypeError):
+                return None
     return value
 
 class QueryRequest(BaseModel):
