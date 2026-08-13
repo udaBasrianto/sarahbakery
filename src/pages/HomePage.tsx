@@ -159,16 +159,16 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* Interactive View Mode Filter pill matching screenshot design */}
-          <div className="flex items-center gap-1 bg-emerald-50/90 dark:bg-emerald-950/40 px-1 py-1 rounded-full border border-emerald-100/70 dark:border-emerald-900/50 shadow-inner">
+          {/* Interactive View Mode Filter pill using theme colors */}
+          <div className="flex items-center gap-1 bg-secondary/80 p-1 rounded-full border border-border/70 shadow-inner">
             <button
               type="button"
               onClick={() => handleViewChange("grid")}
               className={cn(
                 "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300",
                 viewMode === "grid"
-                  ? "bg-white dark:bg-card text-emerald-800 dark:text-emerald-300 shadow-md scale-105"
-                  : "text-emerald-700/70 hover:text-emerald-900 dark:text-emerald-400/70"
+                  ? "bg-card text-primary shadow-md scale-105 border border-border/40 font-bold"
+                  : "text-muted-foreground hover:text-foreground"
               )}
               title="Tampilan 2 Kolom Grid"
             >
@@ -181,8 +181,8 @@ export default function HomePage() {
               className={cn(
                 "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300",
                 viewMode === "full"
-                  ? "bg-white dark:bg-card text-emerald-800 dark:text-emerald-300 shadow-md scale-105"
-                  : "text-emerald-700/70 hover:text-emerald-900 dark:text-emerald-400/70"
+                  ? "bg-card text-primary shadow-md scale-105 border border-border/40 font-bold"
+                  : "text-muted-foreground hover:text-foreground"
               )}
               title="Tampilan 1 Kolom Full"
             >
@@ -195,8 +195,8 @@ export default function HomePage() {
               className={cn(
                 "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300",
                 viewMode === "list"
-                  ? "bg-white dark:bg-card text-emerald-800 dark:text-emerald-300 shadow-md scale-105"
-                  : "text-emerald-700/70 hover:text-emerald-900 dark:text-emerald-400/70"
+                  ? "bg-card text-primary shadow-md scale-105 border border-border/40 font-bold"
+                  : "text-muted-foreground hover:text-foreground"
               )}
               title="Tampilan List Row"
             >
