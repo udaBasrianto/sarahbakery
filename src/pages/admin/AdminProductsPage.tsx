@@ -65,6 +65,7 @@ export default function AdminProductsPage() {
   const [view, setView] = useState<View>("list");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductForm>(initialForm);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["admin-products"],
@@ -383,8 +384,6 @@ export default function AdminProductsPage() {
       </AdminPageLayout>
     );
   }
-
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const toggleSelectAll = () => {
     if (selectedIds.length === products.length) {
