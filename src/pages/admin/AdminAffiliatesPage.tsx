@@ -180,7 +180,7 @@ export default function AdminAffiliatesPage() {
           {affiliates.map((a) => (
             <div key={a.id} className="bg-card border rounded-lg p-3 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="font-mono font-bold">{a.referral_code}</p>
+                <p className="font-mono font-bold">{a.referral_code || a.code}</p>
                 <p className="text-xs text-muted-foreground">
                   {a.total_referrals} referral • {a.total_points} poin • {formatRp(a.total_earnings)}
                 </p>

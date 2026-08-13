@@ -18,7 +18,8 @@ interface Affiliate {
   id: string;
   user_id: string;
   store_id: string;
-  referral_code: string;
+  code?: string;
+  referral_code?: string;
   total_points: number;
   total_earnings: number;
   total_referrals: number;
@@ -99,7 +100,13 @@ export default function AffiliatePage() {
 
   const joinAffiliate = async () => {
     if (!userId || !storeId) return;
-    const { error } = await apiClient.from("affiliates").insert({ user_id: userId, store_id: storeId, referral_code: "" });
+    const genCode = "AFF" + String(userId).padStart(4, "0") + Math.random().toString(36).substring(2, 6).toUpperCase();
+    const { error } = await apiClient.from("affiliates").insert({
+      user_id: userId,
+      store_id: storeId,
+      code: genCode,
+      referral_code: genCode,
+    });
     if (error) {
       toast.error("Gagal mendaftar: " + error.message);
       return;
@@ -108,8 +115,10 @@ export default function AffiliatePage() {
     loadAll();
   };
 
-  const referralLink = affiliate
-    ? `${window.location.origin}/?ref=${affiliate.referral_code}`
+  const activeCode = affiliate?.referral_code || affiliate?.code || "";
+
+  const referralLink = activeCode
+    ? `${window.location.origin}/?ref=${activeCode}`
     : "";
 
   const copyLink = async () => {
@@ -122,7 +131,7 @@ export default function AffiliatePage() {
       try {
         await navigator.share({
           title: "Belanja yuk!",
-          text: `Pakai kode ${affiliate?.referral_code} untuk belanja di toko kami!`,
+          text: `Pakai kode ${activeCode} untuk belanja di toko kami!`,
           url: referralLink,
         });
       } catch {}
@@ -250,7 +259,7 @@ export default function AffiliatePage() {
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Kode Referral Anda</p>
                 <p className="font-mono text-2xl font-bold tracking-widest text-primary">
-                  {affiliate.referral_code}
+                  {activeCode}
                 </p>
               </div>
               <div className="flex gap-2">
