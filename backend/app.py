@@ -7,7 +7,7 @@ import time
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import asyncpg
 import bcrypt
@@ -187,7 +187,7 @@ class QueryRequest(BaseModel):
     single: bool = False
     maybeSingle: bool = False
     operation: str = "GET"
-    data: Optional[Dict[str, Any]] = None
+    data: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
     count: Optional[str] = None
     head: Optional[bool] = False
 
@@ -572,13 +572,29 @@ async def query_endpoint(request: QueryRequest):
         elif request.operation == "POST":
             if not request.data:
                 raise HTTPException(status_code=400, detail={"message": "Missing request data"})
-            keys = list(request.data.keys())
-            post_values = [_coerce_int_if_needed(k, v) for k, v in request.data.items()]
-            quoted_keys = [f'"{k}"' for k in keys]
-            placeholders = ", ".join(f"${i}" for i in range(1, len(keys) + 1))
-            row = await fetch_one(pool, f'INSERT INTO "{table_safe}" ({", ".join(quoted_keys)}) VALUES ({placeholders}) RETURNING *', *post_values)
-            data = dict(row) if row else None
-            return {"data": data, "error": None}
+            if isinstance(request.data, list):
+                if len(request.data) == 0:
+                    return {"data": [], "error": None}
+                inserted_rows = []
+                for item in request.data:
+                    if not isinstance(item, dict):
+                        continue
+                    keys = list(item.keys())
+                    post_values = [_coerce_int_if_needed(k, v) for k, v in item.items()]
+                    quoted_keys = [f'"{k}"' for k in keys]
+                    placeholders = ", ".join(f"${i}" for i in range(1, len(keys) + 1))
+                    row = await fetch_one(pool, f'INSERT INTO "{table_safe}" ({", ".join(quoted_keys)}) VALUES ({placeholders}) RETURNING *', *post_values)
+                    if row:
+                        inserted_rows.append(dict(row))
+                return {"data": inserted_rows, "error": None}
+            elif isinstance(request.data, dict):
+                keys = list(request.data.keys())
+                post_values = [_coerce_int_if_needed(k, v) for k, v in request.data.items()]
+                quoted_keys = [f'"{k}"' for k in keys]
+                placeholders = ", ".join(f"${i}" for i in range(1, len(keys) + 1))
+                row = await fetch_one(pool, f'INSERT INTO "{table_safe}" ({", ".join(quoted_keys)}) VALUES ({placeholders}) RETURNING *', *post_values)
+                data = dict(row) if row else None
+                return {"data": data, "error": None}
         elif request.operation == "PATCH":
             if not request.data:
                 raise HTTPException(status_code=400, detail={"message": "Missing request data"})
