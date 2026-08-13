@@ -20,9 +20,9 @@ interface Affiliate {
   store_id: string;
   code?: string;
   referral_code?: string;
-  total_points: number;
-  total_earnings: number;
-  total_referrals: number;
+  total_points?: number;
+  total_earnings?: number;
+  total_referrals?: number;
   status: string;
   payment_method: string | null;
   payment_account: string | null;
@@ -249,9 +249,9 @@ export default function AffiliatePage() {
           <>
             {/* Stats */}
             <div className="bg-card rounded-2xl shadow-lg p-4 grid grid-cols-3 gap-2">
-              <Stat icon={<Coins className="w-5 h-5" />} label="Poin" value={affiliate.total_points.toString()} />
-              <Stat icon={<TrendingUp className="w-5 h-5" />} label="Total Komisi" value={formatRp(affiliate.total_earnings)} small />
-              <Stat icon={<Users className="w-5 h-5" />} label="Referral" value={affiliate.total_referrals.toString()} />
+              <Stat icon={<Coins className="w-5 h-5" />} label="Poin" value={String(affiliate.total_points ?? 0)} />
+              <Stat icon={<TrendingUp className="w-5 h-5" />} label="Total Komisi" value={formatRp(affiliate.total_earnings ?? 0)} small />
+              <Stat icon={<Users className="w-5 h-5" />} label="Referral" value={String(affiliate.total_referrals ?? 0)} />
             </div>
 
             {/* Referral link */}
@@ -282,14 +282,14 @@ export default function AffiliatePage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Saldo Poin</p>
                   <p className="font-display text-2xl font-bold">
-                    {affiliate.total_points} <span className="text-sm text-muted-foreground font-normal">
-                      ≈ {formatRp(affiliate.total_points * (settings?.point_value || 0))}
+                    {affiliate.total_points ?? 0} <span className="text-sm text-muted-foreground font-normal">
+                      ≈ {formatRp((affiliate.total_points ?? 0) * (settings?.point_value || 0))}
                     </span>
                   </p>
                 </div>
                 <Dialog open={wdOpen} onOpenChange={setWdOpen}>
                   <DialogTrigger asChild>
-                    <Button onClick={openWithdraw} disabled={affiliate.total_points < (settings?.min_withdraw_points || 0)}>
+                    <Button onClick={openWithdraw} disabled={(affiliate.total_points ?? 0) < (settings?.min_withdraw_points || 0)}>
                       <Wallet className="w-4 h-4 mr-1" /> Cairkan
                     </Button>
                   </DialogTrigger>
@@ -341,7 +341,7 @@ export default function AffiliatePage() {
                   </DialogContent>
                 </Dialog>
               </div>
-              {settings && affiliate.total_points < settings.min_withdraw_points && (
+              {settings && (affiliate.total_points ?? 0) < settings.min_withdraw_points && (
                 <p className="text-xs text-muted-foreground">
                   Minimum pencairan {settings.min_withdraw_points} poin.
                 </p>

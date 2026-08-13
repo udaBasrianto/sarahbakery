@@ -182,7 +182,7 @@ export default function AdminAffiliatesPage() {
               <div>
                 <p className="font-mono font-bold">{a.referral_code || a.code}</p>
                 <p className="text-xs text-muted-foreground">
-                  {a.total_referrals} referral • {a.total_points} poin • {formatRp(a.total_earnings)}
+                  {a.total_referrals ?? 0} referral • {a.total_points ?? 0} poin • {formatRp(a.total_earnings ?? 0)}
                 </p>
               </div>
               <span className="text-xs px-2 py-1 rounded bg-muted">{a.status}</span>
