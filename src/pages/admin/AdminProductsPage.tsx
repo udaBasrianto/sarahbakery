@@ -103,13 +103,16 @@ export default function AdminProductsPage() {
         brand: data.brand || null,
         is_preorder: data.is_preorder,
         preorder_days: data.is_preorder && data.preorder_days ? parseInt(data.preorder_days) : null,
-        store_id: storeId!,
+        store_id: storeId || 1,
       }).select().single();
       if (error) throw error;
 
-      if (data.images.length > 0) {
+      const createdProduct = Array.isArray(newProduct) ? newProduct[0] : newProduct;
+      const createdId = createdProduct?.id;
+
+      if (createdId && data.images.length > 0) {
         const imageRecords = data.images.map((url, index) => ({
-          product_id: newProduct.id,
+          product_id: createdId,
           image_url: url,
           sort_order: index,
         }));
@@ -122,8 +125,8 @@ export default function AdminProductsPage() {
       toast.success("Produk berhasil ditambahkan");
       closeForm();
     },
-    onError: () => {
-      toast.error("Gagal menambahkan produk");
+    onError: (err: any) => {
+      toast.error("Gagal menambahkan produk: " + (err?.message || ""));
     },
   });
 

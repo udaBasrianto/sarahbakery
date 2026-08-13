@@ -551,8 +551,9 @@ async def query_endpoint(request: QueryRequest):
         keys = list(request.data.keys())
         post_values = [_coerce_int_if_needed(k, v) for k, v in request.data.items()]
         placeholders = ", ".join(f"${i}" for i in range(1, len(keys) + 1))
-        await execute(pool, f"INSERT INTO {table_safe} ({', '.join(keys)}) VALUES ({placeholders})", *post_values)
-        return {"data": None, "error": None}
+        row = await fetch_one(pool, f"INSERT INTO {table_safe} ({', '.join(keys)}) VALUES ({placeholders}) RETURNING *", *post_values)
+        data = dict(row) if row else None
+        return {"data": data, "error": None}
     elif request.operation == "PATCH":
         if not request.data:
             raise HTTPException(status_code=400, detail={"message": "Missing request data"})
