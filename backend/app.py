@@ -363,6 +363,28 @@ def _clean_relation_row(data: dict, parsed: dict) -> dict:
     return data
 
 
+INT_COLUMNS = {
+    "id", "user_id", "store_id", "category_id", "product_id", "order_id",
+    "affiliate_id", "referrer_id", "referred_id", "author_id", "view_count",
+    "sold_count", "review_count", "stock", "sort_order", "preorder_days",
+    "shelf_life_days", "quantity"
+}
+
+def _coerce_int_if_needed(key: str, val: Any) -> Any:
+    if val is None:
+        return None
+    if isinstance(val, str) and (key.endswith("_id") or key in INT_COLUMNS or key == "id"):
+        val_str = val.strip()
+        if not val_str:
+            return None
+        if val_str.isdigit() or (val_str.startswith("-") and val_str[1:].isdigit()):
+            try:
+                return int(val_str)
+            except ValueError:
+                return val
+    return val
+
+
 def parse_select_with_relations(base_table: str, select: str):
     """
     Parse select string like "*, categories(name, icon), users(email)" into:
