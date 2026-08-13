@@ -40,7 +40,7 @@ export function HeroSlider() {
   }
 
   return (
-    <section className="px-4 py-4">
+    <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4">
       <Carousel
         opts={{ loop: true }}
         plugins={[plugin.current]}
@@ -50,7 +50,7 @@ export function HeroSlider() {
           {banners.map((banner) => (
             <CarouselItem key={banner.id}>
               <div
-                className="relative rounded-2xl overflow-hidden p-6 min-h-[260px] flex flex-col justify-center"
+                className="relative rounded-2xl overflow-hidden p-6 sm:p-8 min-h-[200px] sm:min-h-[260px] md:min-h-[300px] lg:min-h-[340px] flex flex-col justify-center"
                 style={{
                   background: banner.image_url
                     ? `url(${banner.image_url}) center/cover`
