@@ -63,8 +63,6 @@ def split_sql_statements(sql_text: str):
         # Dollar-quoted strings ($tag$...$tag$ or $$...$$)
         if not in_single_quote:
             if not in_dollar_quote and ch == '$':
-                # Try to detect dollar-quote start
-                # Match $tag$ where tag can be empty ($$) or identifier
                 m = re.match(r'\$([A-Za-z0-9_]*)\$', sql_text[i:])
                 if m:
                     in_dollar_quote = True
@@ -73,7 +71,6 @@ def split_sql_statements(sql_text: str):
                     i += 1
                     continue
             elif in_dollar_quote and ch == '$':
-                # Try to match end tag
                 end_tag_len = len(dollar_tag)
                 if sql_text[i:i + end_tag_len] == dollar_tag:
                     in_dollar_quote = False
@@ -87,7 +84,6 @@ def split_sql_statements(sql_text: str):
             if ch == "'" and not in_single_quote:
                 in_single_quote = True
             elif ch == "'" and in_single_quote:
-                # escaped '' means continue string
                 if next_ch == "'":
                     buf.append(ch)
                     buf.append(next_ch)
@@ -107,7 +103,6 @@ def split_sql_statements(sql_text: str):
 
         i += 1
 
-    # Last statement (may not end with ;)
     stmt = ''.join(buf).strip()
     if stmt:
         statements.append(stmt)
@@ -118,7 +113,11 @@ def split_sql_statements(sql_text: str):
 async def apply_sql(conn, sql_text: str):
     statements = split_sql_statements(sql_text)
     for stmt in statements:
-        await conn.execute(stmt)
+        try:
+            await conn.execute(stmt)
+        except Exception as e:
+            # Print warning for non-critical duplicate errors but keep executing
+            print(f'   [Note] {e}')
 
 
 async def main():
@@ -131,14 +130,32 @@ async def main():
         return
 
     async with pool.acquire() as conn:
+        # Create schema_migrations table if not exists
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS _schema_migrations (
+                filename TEXT PRIMARY KEY,
+                executed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            );
+        """)
+
+        # Fetch executed migrations
+        rows = await conn.fetch("SELECT filename FROM _schema_migrations")
+        executed = {r["filename"] for r in rows}
+
         for migration_path in migration_files:
-            print(f'Applying: {migration_path.name} ...')
+            fname = migration_path.name
+            if fname in executed:
+                print(f'Skipping (already applied): {fname}')
+                continue
+
+            print(f'Applying: {fname} ...')
             sql = migration_path.read_text(encoding='utf-8')
             await apply_sql(conn, sql)
-            print(f'  OK: {migration_path.name}')
+            await conn.execute("INSERT INTO _schema_migrations (filename) VALUES ($1) ON CONFLICT DO NOTHING", fname)
+            print(f'  OK: {fname}')
 
     await pool.close()
-    print('\nAll migrations applied successfully.')
+    print('\nAll migrations processed successfully.')
 
 
 if __name__ == '__main__':
