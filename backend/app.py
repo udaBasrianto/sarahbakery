@@ -164,23 +164,7 @@ class QueryFilter(BaseModel):
     def get_operator(self) -> str:
         return self.operator or self.op or ""
 
-INT_FIELD_RE = re.compile(r"(^id$|_id$|_id_fk$|stock|view_count|sold_count|review_count|sort_order|preorder_days|shelf_life_days|quantity|store_id|category_id)", re.IGNORECASE)
 
-def _coerce_int_if_needed(field_name: str, value: Any) -> Any:
-    if value is None or value == "":
-        return None
-    if isinstance(value, str):
-        val_str = value.strip()
-        if not val_str or val_str.lower() in ("null", "undefined", "none"):
-            return None
-        if INT_FIELD_RE.search(field_name):
-            try:
-                if "." in val_str:
-                    return int(float(val_str))
-                return int(val_str)
-            except (ValueError, TypeError):
-                return None
-    return value
 
 class QueryRequest(BaseModel):
     table: str
@@ -576,6 +560,16 @@ async def query_endpoint(request: QueryRequest):
         elif request.operation == "POST":
             if not request.data:
                 raise HTTPException(status_code=400, detail={"message": "Missing request data"})
+
+            def _prepare_insert(item: dict):
+                """Coerce values and strip None entries so DB defaults kick in."""
+                pairs = [(k, _coerce_int_if_needed(k, v)) for k, v in item.items()]
+                pairs = [(k, v) for k, v in pairs if v is not None]
+                if not pairs:
+                    return [], []
+                keys, vals = zip(*pairs)
+                return list(keys), list(vals)
+
             if isinstance(request.data, list):
                 if len(request.data) == 0:
                     return {"data": [], "error": None}
@@ -583,8 +577,9 @@ async def query_endpoint(request: QueryRequest):
                 for item in request.data:
                     if not isinstance(item, dict):
                         continue
-                    keys = list(item.keys())
-                    post_values = [_coerce_int_if_needed(k, v) for k, v in item.items()]
+                    keys, post_values = _prepare_insert(item)
+                    if not keys:
+                        continue
                     quoted_keys = [f'"{k}"' for k in keys]
                     placeholders = ", ".join(f"${i}" for i in range(1, len(keys) + 1))
                     row = await fetch_one(pool, f'INSERT INTO "{table_safe}" ({", ".join(quoted_keys)}) VALUES ({placeholders}) RETURNING *', *post_values)
@@ -592,8 +587,9 @@ async def query_endpoint(request: QueryRequest):
                         inserted_rows.append(dict(row))
                 return {"data": inserted_rows, "error": None}
             elif isinstance(request.data, dict):
-                keys = list(request.data.keys())
-                post_values = [_coerce_int_if_needed(k, v) for k, v in request.data.items()]
+                keys, post_values = _prepare_insert(request.data)
+                if not keys:
+                    raise HTTPException(status_code=400, detail={"message": "No valid data fields after processing"})
                 quoted_keys = [f'"{k}"' for k in keys]
                 placeholders = ", ".join(f"${i}" for i in range(1, len(keys) + 1))
                 row = await fetch_one(pool, f'INSERT INTO "{table_safe}" ({", ".join(quoted_keys)}) VALUES ({placeholders}) RETURNING *', *post_values)

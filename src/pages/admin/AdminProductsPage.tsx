@@ -104,7 +104,7 @@ export default function AdminProductsPage() {
         is_available: data.is_available,
         brand: data.brand || null,
         is_preorder: data.is_preorder,
-        preorder_days: data.is_preorder && data.preorder_days ? parseInt(data.preorder_days) : null,
+        preorder_days: data.is_preorder && data.preorder_days ? parseInt(data.preorder_days) : 0,
         store_id: storeId || 1,
       }).select().single();
       if (error) throw error;
@@ -146,7 +146,7 @@ export default function AdminProductsPage() {
           is_available: data.is_available,
           brand: data.brand || null,
           is_preorder: data.is_preorder,
-          preorder_days: data.is_preorder && data.preorder_days ? parseInt(data.preorder_days) : null,
+          preorder_days: data.is_preorder && data.preorder_days ? parseInt(data.preorder_days) : 0,
         })
         .eq("id", id);
       if (error) throw error;
