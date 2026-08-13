@@ -48,43 +48,89 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Network-first for API requests (/api/*, /query, /auth, /rpc, /storage or backend requests)
-  if (url.pathname.startsWith("/api") || url.pathname.startsWith("/query") || url.pathname.startsWith("/auth") || url.pathname.startsWith("/rpc") || url.pathname.startsWith("/storage") || url.port === "3000" || url.port === "8000") {
+  // Network-first for API requests (/api/*, /query, /auth/*, /rpc, /storage or backend ports)
+  // Note: /auth/ (with trailing slash) matches API endpoints, while /auth matches SPA page route
+  if (
+    url.pathname.startsWith("/api") ||
+    url.pathname.startsWith("/query") ||
+    url.pathname.startsWith("/auth/") ||
+    url.pathname.startsWith("/rpc") ||
+    url.pathname.startsWith("/storage") ||
+    url.port === "3000" ||
+    url.port === "8000"
+  ) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.status === 200) {
+          if (response && response.status === 200) {
             const responseClone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
           }
           return response;
         })
-        .catch(() => caches.match(request))
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          return new Response(
+            JSON.stringify({ error: "Network unavailable", offline: true }),
+            { status: 503, headers: { "Content-Type": "application/json" } }
+          );
+        })
     );
     return;
   }
 
-  // Stale-While-Revalidate for HTML pages, static assets & images
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      const fetchPromise = fetch(request)
+  // Network-first with app shell fallback for HTML navigation requests (SPA routes like /auth, /products, etc.)
+  if (request.mode === "navigate" || (request.headers.get("accept") || "").includes("text/html")) {
+    event.respondWith(
+      fetch(request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache);
-            });
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
           }
           return networkResponse;
         })
-        .catch(() => {
-          // If offline and request is an HTML navigation page, return cached index.html
-          if (request.mode === "navigate") {
-            return caches.match("/");
-          }
-        });
+        .catch(async () => {
+          const cachedResponse =
+            (await caches.match(request)) ||
+            (await caches.match("/")) ||
+            (await caches.match("/index.html"));
+          if (cachedResponse) return cachedResponse;
+          return new Response(
+            "<!DOCTYPE html><html><head><title>Offline</title></head><body><h1>Aplikasi Offline</h1><p>Koneksi internet Anda terputus.</p></body></html>",
+            { status: 503, headers: { "Content-Type": "text/html" } }
+          );
+        })
+    );
+    return;
+  }
 
-      return cachedResponse || fetchPromise;
+  // Cache-first / Stale-While-Revalidate for static assets & images
+  event.respondWith(
+    caches.match(request).then(async (cachedResponse) => {
+      if (cachedResponse) {
+        // Revalidate in background
+        fetch(request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse.clone()));
+            }
+          })
+          .catch(() => {});
+        return cachedResponse;
+      }
+
+      try {
+        const networkResponse = await fetch(request);
+        if (networkResponse && networkResponse.status === 200) {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+        }
+        return networkResponse;
+      } catch (err) {
+        return new Response("", { status: 404, statusText: "Not Found" });
+      }
     })
   );
 });

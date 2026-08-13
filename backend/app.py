@@ -1250,7 +1250,7 @@ async def google_oauth_callback(request: Request, code: str = Query(...), state:
 try {{
   var session = JSON.parse(decodeURIComponent({json.dumps(session_qs)}));
   var ls = window.localStorage;
-  var existing = ls.getItem('sb-auth-session');
+  try {{ ls.setItem('sarah-auth-session', JSON.stringify(session)); }} catch(e){{}}
   try {{ ls.setItem('sb-auth-session', JSON.stringify(session)); }} catch(e){{}}
   try {{
     // Supabase-compatible storage keys (client.integrations):

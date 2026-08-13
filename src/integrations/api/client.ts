@@ -44,7 +44,7 @@ type QueryOrder = {
 
 function getStoredSession(): Session | null {
   try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY) || localStorage.getItem("sb-auth-session");
     if (!raw) return null;
     return JSON.parse(raw) as Session;
   } catch {
@@ -54,9 +54,12 @@ function getStoredSession(): Session | null {
 
 function setStoredSession(session: Session | null) {
   if (session) {
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+    const str = JSON.stringify(session);
+    localStorage.setItem(AUTH_STORAGE_KEY, str);
+    localStorage.setItem("sb-auth-session", str);
   } else {
     localStorage.removeItem(AUTH_STORAGE_KEY);
+    localStorage.removeItem("sb-auth-session");
   }
 }
 
