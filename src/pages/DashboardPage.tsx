@@ -84,11 +84,11 @@ export default function DashboardPage() {
   }, [navigate]);
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await apiClient
+    const { data } = await apiClient
       .from("profiles")
       .select("*")
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
 
     if (data) {
       setProfile(data);

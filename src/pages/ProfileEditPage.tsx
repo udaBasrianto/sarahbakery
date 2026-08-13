@@ -53,15 +53,15 @@ export default function ProfileEditPage() {
   }, [navigate]);
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await apiClient
+    const { data } = await apiClient
       .from("profiles")
       .select("*")
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
 
     if (data) {
       setFormData({
-        name: data.name || "",
+        name: data.name || data.full_name || "",
         phone: data.phone || "",
         address: data.address || "",
         avatar_url: data.avatar_url || "",
@@ -75,24 +75,48 @@ export default function ProfileEditPage() {
 
     setIsSaving(true);
 
-    const { error } = await apiClient
-      .from("profiles")
-      .update({
+    try {
+      // Check if profile exists
+      const { data: existing } = await apiClient
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const payload = {
+        user_id: user.id,
         name: formData.name,
+        full_name: formData.name,
         phone: formData.phone,
         address: formData.address,
         avatar_url: formData.avatar_url,
-      })
-      .eq("user_id", user.id);
+      };
 
-    if (error) {
-      toast.error("Gagal menyimpan profil");
-    } else {
-      toast.success("Profil berhasil disimpan");
-      navigate("/dashboard");
+      let error;
+      if (existing) {
+        const res = await apiClient
+          .from("profiles")
+          .update(payload)
+          .eq("user_id", user.id);
+        error = res.error;
+      } else {
+        const res = await apiClient
+          .from("profiles")
+          .insert(payload);
+        error = res.error;
+      }
+
+      if (error) {
+        toast.error("Gagal menyimpan profil: " + error.message);
+      } else {
+        toast.success("Profil berhasil disimpan");
+        navigate("/dashboard");
+      }
+    } catch (err: any) {
+      toast.error("Error: " + (err?.message || "Gagal menyimpan profil"));
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsSaving(false);
   };
 
   if (isLoading) {
