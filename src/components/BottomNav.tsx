@@ -13,24 +13,13 @@ import {
   Heart, 
   Clock, 
   ShieldCheck, 
-  Phone, 
-  MapPin, 
   X, 
   ChevronRight,
-  LogOut,
   LogIn
 } from "lucide-react";
 import { useCartStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/integrations/api/client";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
 
 export function BottomNav() {
   const location = useLocation();
@@ -41,7 +30,7 @@ export function BottomNav() {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Auth state listener & profile fetch
   useEffect(() => {
@@ -50,7 +39,6 @@ export function BottomNav() {
       setIsLoggedIn(!!session);
       if (session?.user) {
         setUserProfile(session.user);
-        // Check admin role
         const { data: adminData } = await apiClient
           .from("super_admins")
           .select("id")
@@ -83,9 +71,9 @@ export function BottomNav() {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       if (currentScrollY > lastScrollY && currentScrollY > 80) {
-        setIsVisible(false); // Scroll down -> hide
+        setIsVisible(false);
       } else {
-        setIsVisible(true);  // Scroll up -> show
+        setIsVisible(true);
       }
       setLastScrollY(currentScrollY);
     };
@@ -100,15 +88,34 @@ export function BottomNav() {
   }
 
   const handleNavClick = (path: string) => {
-    setIsSheetOpen(false);
+    setIsMenuOpen(false);
     navigate(path);
   };
 
+  const menuList = [
+    { icon: Home, label: "Beranda", desc: "Halaman utama toko", path: "/" },
+    { icon: ShoppingBag, label: "Katalog Produk", desc: "Bolu, roti, cookies, pastry", path: "/products" },
+    { icon: Sparkles, label: "Pesanan Custom & PO", desc: "Kue ulang tahun & acara", path: "/custom-order" },
+    { icon: ChefHat, label: "Komunitas Resep", desc: "Berbagi resep kreasi baking", path: "/community", badge: "Baru" },
+    { icon: Newspaper, label: "Artikel & Blog", desc: "Tips & resep dapur Sarah", path: "/blog" },
+    { icon: ShoppingCart, label: "Keranjang Belanja", desc: "Cek pesanan & checkout", path: "/cart", count: totalItems },
+    { icon: Gift, label: "Program Affiliate", desc: "Dapatkan komisi referral", path: "/dashboard/affiliate" },
+    { icon: Heart, label: "Wishlist Favorit", desc: "Kue yang Anda simpan", path: "/dashboard/wishlist" },
+    { icon: Clock, label: "Riwayat Pesanan", desc: "Lacak status pesanan", path: "/dashboard/orders" },
+    { 
+      icon: User, 
+      label: isLoggedIn ? "Profil & Akun Saya" : "Masuk / Daftar", 
+      desc: isLoggedIn ? (userProfile?.email || "Kelola akun") : "Masuk untuk belanja lebih mudah", 
+      path: isLoggedIn ? "/dashboard" : "/auth" 
+    },
+  ];
+
   return (
     <>
+      {/* Floating Bottom Nav Bar */}
       <nav
         className={cn(
-          "fixed bottom-3 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md transition-all duration-300 ease-in-out",
+          "fixed bottom-3 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-md transition-all duration-300 ease-in-out",
           isVisible ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none"
         )}
       >
@@ -156,7 +163,7 @@ export function BottomNav() {
             </span>
           </Link>
 
-          {/* 3. Center Floating Action Button (FAB) — Custom Order */}
+          {/* 3. Center FAB — Custom Order */}
           <div className="relative -mt-6 mx-0.5 flex flex-col items-center">
             <Link
               to="/custom-order"
@@ -199,227 +206,145 @@ export function BottomNav() {
             </span>
           </Link>
 
-          {/* 5. Semua Menu (Drawer Sheet Trigger) */}
-          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-            <SheetTrigger asChild>
-              <button
-                type="button"
-                className={cn(
-                  "relative flex flex-col items-center justify-center py-1 px-2.5 rounded-full transition-all duration-300 group",
-                  isSheetOpen || location.pathname === "/blog" || location.pathname === "/community" || location.pathname.startsWith("/dashboard")
-                    ? "text-primary font-bold"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <div
-                  className={cn(
-                    "relative flex items-center justify-center p-1 rounded-xl transition-all duration-300",
-                    (isSheetOpen || location.pathname === "/blog" || location.pathname === "/community") && "bg-primary/10 -translate-y-1 shadow-sm"
-                  )}
-                >
-                  <Menu className="w-5 h-5 group-hover:scale-105 transition-transform" />
-                </div>
-                <span className="text-[10px] mt-0.5 font-medium text-muted-foreground group-hover:text-foreground">
-                  Menu
-                </span>
-              </button>
-            </SheetTrigger>
-
-            <SheetContent
-              side="bottom"
-              className="w-full max-w-md left-1/2 -translate-x-1/2 right-auto rounded-t-3xl max-h-[85vh] overflow-y-auto px-4 pb-8 pt-4 border-x border-t border-border shadow-2xl"
+          {/* 5. Menu Button */}
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen(true)}
+            className={cn(
+              "relative flex flex-col items-center justify-center py-1 px-2.5 rounded-full transition-all duration-300 group",
+              isMenuOpen ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <div
+              className={cn(
+                "relative flex items-center justify-center p-1 rounded-xl transition-all duration-300",
+                isMenuOpen && "bg-primary/10 -translate-y-1 shadow-sm"
+              )}
             >
-              <SheetHeader className="text-left pb-3 border-b border-border/70">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shadow-sm">
-                      🧁
-                    </div>
-                    <div>
-                      <SheetTitle className="font-display text-lg font-bold text-foreground">
-                        Menu Sarah Bakery
-                      </SheetTitle>
-                      <p className="text-xs text-muted-foreground">Jelajahi seluruh layanan, resep &amp; promo</p>
-                    </div>
-                  </div>
-                </div>
-              </SheetHeader>
-
-              {/* User Profile Card / Login Banner */}
-              <div className="mt-4 p-3.5 bg-gradient-to-r from-primary/10 via-amber-500/10 to-primary/5 rounded-2xl border border-primary/20 flex items-center justify-between">
-                {isLoggedIn ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-xs">
-                      {(userProfile?.user_metadata?.full_name || userProfile?.email || "U").charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-foreground truncate max-w-[180px]">
-                        {userProfile?.user_metadata?.full_name || userProfile?.email?.split("@")[0]}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground truncate max-w-[180px]">
-                        {userProfile?.email}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-bold text-foreground">Selamat Datang di Sarah Bakery!</p>
-                    <p className="text-[11px] text-muted-foreground">Masuk untuk melihat pesanan &amp; simpan resep</p>
-                  </div>
-                )}
-
-                <Button
-                  size="sm"
-                  onClick={() => handleNavClick(isLoggedIn ? "/dashboard" : "/auth")}
-                  className="rounded-xl font-bold text-xs h-8 shadow-xs"
-                >
-                  {isLoggedIn ? "Dashboard" : "Masuk"}
-                </Button>
-              </div>
-
-              {/* Main Navigation Grid */}
-              <div className="mt-4 space-y-3">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-1">
-                  Fitur &amp; Halaman Utama
-                </p>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  {/* Artikel & Resep Dapur */}
-                  <button
-                    type="button"
-                    onClick={() => handleNavClick("/blog")}
-                    className="flex items-start gap-3 p-3 rounded-2xl bg-card border border-border/80 hover:border-primary/50 hover:bg-primary/5 transition-all text-left shadow-xs group"
-                  >
-                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
-                      <Newspaper className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1">
-                        <p className="font-bold text-xs text-foreground">Artikel &amp; Blog</p>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Tips &amp; resep kue</p>
-                    </div>
-                  </button>
-
-                  {/* Komunitas Resep Baking */}
-                  <button
-                    type="button"
-                    onClick={() => handleNavClick("/community")}
-                    className="flex items-start gap-3 p-3 rounded-2xl bg-card border border-border/80 hover:border-primary/50 hover:bg-primary/5 transition-all text-left shadow-xs group"
-                  >
-                    <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 group-hover:scale-105 transition-transform">
-                      <ChefHat className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1">
-                        <p className="font-bold text-xs text-foreground">Komunitas Resep</p>
-                        <span className="text-[8px] font-bold px-1 py-0.2 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
-                          Baru
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Berbagi resep kreasi</p>
-                    </div>
-                  </button>
-
-                  {/* Katalog Produk */}
-                  <button
-                    type="button"
-                    onClick={() => handleNavClick("/products")}
-                    className="flex items-start gap-3 p-3 rounded-2xl bg-card border border-border/80 hover:border-primary/50 hover:bg-primary/5 transition-all text-left shadow-xs group"
-                  >
-                    <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-105 transition-transform">
-                      <ShoppingBag className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-xs text-foreground">Katalog Produk</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Bolu, roti, cookies</p>
-                    </div>
-                  </button>
-
-                  {/* Pesanan Custom */}
-                  <button
-                    type="button"
-                    onClick={() => handleNavClick("/custom-order")}
-                    className="flex items-start gap-3 p-3 rounded-2xl bg-card border border-border/80 hover:border-primary/50 hover:bg-primary/5 transition-all text-left shadow-xs group"
-                  >
-                    <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform">
-                      <Sparkles className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-xs text-foreground">Pesanan Custom</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Kue ultah &amp; event</p>
-                    </div>
-                  </button>
-
-                  {/* Program Affiliate */}
-                  <button
-                    type="button"
-                    onClick={() => handleNavClick("/dashboard/affiliate")}
-                    className="flex items-start gap-3 p-3 rounded-2xl bg-card border border-border/80 hover:border-primary/50 hover:bg-primary/5 transition-all text-left shadow-xs group"
-                  >
-                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
-                      <Gift className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-xs text-foreground">Program Affiliate</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Dapatkan komisi</p>
-                    </div>
-                  </button>
-
-                  {/* Wishlist Favorit */}
-                  <button
-                    type="button"
-                    onClick={() => handleNavClick("/dashboard/wishlist")}
-                    className="flex items-start gap-3 p-3 rounded-2xl bg-card border border-border/80 hover:border-primary/50 hover:bg-primary/5 transition-all text-left shadow-xs group"
-                  >
-                    <div className="p-2 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:scale-105 transition-transform">
-                      <Heart className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-xs text-foreground">Wishlist Favorit</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Kue yang disimpan</p>
-                    </div>
-                  </button>
-
-                  {/* Riwayat Pesanan */}
-                  <button
-                    type="button"
-                    onClick={() => handleNavClick("/dashboard/orders")}
-                    className="flex items-start gap-3 p-3 rounded-2xl bg-card border border-border/80 hover:border-primary/50 hover:bg-primary/5 transition-all text-left shadow-xs group"
-                  >
-                    <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform">
-                      <Clock className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-xs text-foreground">Riwayat Pesanan</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Lacak status kue</p>
-                    </div>
-                  </button>
-
-                  {/* Panel Admin (hanya jika super admin) */}
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={() => handleNavClick("/admin/dashboard")}
-                      className="flex items-start gap-3 p-3 rounded-2xl bg-primary/10 border border-primary/30 hover:bg-primary/20 transition-all text-left shadow-xs group col-span-2"
-                    >
-                      <div className="p-2 rounded-xl bg-primary text-primary-foreground group-hover:scale-105 transition-transform">
-                        <ShieldCheck className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-xs text-primary">Panel Admin Toko</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">Kelola produk, pesanan, artikel, resep &amp; pengaturan</p>
-                      </div>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
+              <Menu className="w-5 h-5 group-hover:scale-105 transition-transform" />
+            </div>
+            <span className="text-[10px] mt-0.5 font-medium text-muted-foreground group-hover:text-foreground">
+              Menu
+            </span>
+          </button>
 
         </div>
       </nav>
+
+      {/* Clean Bottom Sheet Backdrop */}
+      <div
+        onClick={() => setIsMenuOpen(false)}
+        className={cn(
+          "fixed inset-0 z-50 bg-black/60 backdrop-blur-xs transition-opacity duration-300",
+          isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}
+      />
+
+      {/* Clean Bottom Sheet Drawer Container */}
+      <div
+        className={cn(
+          "fixed inset-x-0 bottom-0 z-50 flex justify-center pointer-events-none transition-transform duration-300 ease-out",
+          isMenuOpen ? "translate-y-0" : "translate-y-full"
+        )}
+      >
+        <div className="w-full max-w-md bg-card rounded-t-3xl border-t border-x border-border shadow-2xl px-4 pt-3 pb-8 pointer-events-auto max-h-[82vh] overflow-y-auto">
+          
+          {/* Drag Pill */}
+          <div className="w-12 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-3" />
+
+          {/* Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-border/80">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🧁</span>
+              <div>
+                <h3 className="font-display font-bold text-base text-foreground leading-tight">
+                  Menu Sarah Bakery
+                </h3>
+                <p className="text-[11px] text-muted-foreground">Pilih menu layanan &amp; informasi</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen(false)}
+              className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Clean Menu Items List */}
+          <div className="divide-y divide-border/60 mt-1">
+            {menuList.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+
+              return (
+                <button
+                  key={item.path}
+                  type="button"
+                  onClick={() => handleNavClick(item.path)}
+                  className={cn(
+                    "w-full flex items-center justify-between py-3 px-2 rounded-2xl hover:bg-muted/40 transition-colors text-left group",
+                    isActive && "bg-primary/10 text-primary font-semibold"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-9 h-9 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105",
+                      isActive ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                    )}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <p className={cn("text-xs font-bold leading-tight", isActive ? "text-primary" : "text-foreground")}>
+                          {item.label}
+                        </p>
+                        {item.badge && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                            {item.badge}
+                          </span>
+                        )}
+                        {item.count !== undefined && item.count > 0 && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-accent text-accent-foreground">
+                            {item.count} item
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {item.desc}
+                      </p>
+                    </div>
+                  </div>
+
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              );
+            })}
+
+            {/* Admin Dashboard shortcut if Super Admin */}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => handleNavClick("/admin/dashboard")}
+                className="w-full flex items-center justify-between py-3 px-2 rounded-2xl bg-primary/10 hover:bg-primary/20 transition-colors text-left group mt-1"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-primary leading-tight">Panel Admin Toko</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Kelola produk, pesanan, artikel &amp; settings</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-primary group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            )}
+          </div>
+
+        </div>
+      </div>
     </>
   );
 }
-
