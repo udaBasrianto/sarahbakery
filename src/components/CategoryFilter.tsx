@@ -46,7 +46,7 @@ export function CategoryFilter({
     <div
       ref={scrollRef}
       className={cn(
-        "flex gap-2 overflow-x-auto pb-2 scrollbar-hide cursor-grab select-none",
+        "flex gap-2 overflow-x-auto pb-2 scrollbar-hide no-scrollbar cursor-grab select-none",
         isDragging && "cursor-grabbing"
       )}
       onMouseDown={handleMouseDown}

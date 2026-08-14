@@ -259,7 +259,7 @@ export default function CommunityFeedPage() {
         </div>
 
         {/* Tab Sorting */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar scrollbar-hide">
           <button
             onClick={() => setActiveTab("latest")}
             className={cn(
@@ -299,7 +299,7 @@ export default function CommunityFeedPage() {
         </div>
 
         {/* Categories Chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar scrollbar-hide">
           {CATEGORIES.map((cat) => {
             const isActive = selectedCategory === cat;
             return (

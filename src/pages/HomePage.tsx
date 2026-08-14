@@ -140,7 +140,7 @@ export default function HomePage() {
 
       {/* Horizontal Scrollable Discovery Row under Slider */}
       <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-3">
-        <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-1">
+        <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar scrollbar-hide pb-1">
           <Link
             to="/custom-order"
             className="flex items-center gap-2.5 px-3.5 py-2 bg-gradient-to-r from-primary/10 via-amber-500/10 to-primary/5 border border-primary/20 rounded-2xl hover:border-primary/40 transition-all shrink-0 group shadow-xs"
