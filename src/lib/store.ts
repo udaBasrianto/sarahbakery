@@ -7,11 +7,12 @@ export interface CartItem {
   price: number;
   quantity: number;
   image_url?: string;
+  min_order?: number;
 }
 
 interface CartStore {
   items: CartItem[];
-  addItem: (item: Omit<CartItem, 'quantity'>) => void;
+  addItem: (item: Omit<CartItem, 'quantity'>, quantity?: number) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
@@ -23,17 +24,21 @@ export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
-      addItem: (item) => {
+      addItem: (item, customQuantity) => {
         set((state) => {
+          const minQty = Math.max(1, item.min_order || 1);
+          const addQty = customQuantity !== undefined && customQuantity > 0 ? customQuantity : minQty;
           const existingItem = state.items.find((i) => i.id === item.id);
           if (existingItem) {
             return {
               items: state.items.map((i) =>
-                i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+                i.id === item.id
+                  ? { ...i, quantity: i.quantity + (customQuantity !== undefined ? customQuantity : 1), min_order: item.min_order ?? i.min_order }
+                  : i
               ),
             };
           }
-          return { items: [...state.items, { ...item, quantity: 1 }] };
+          return { items: [...state.items, { ...item, quantity: addQty, min_order: minQty }] };
         });
       },
       removeItem: (id) => {

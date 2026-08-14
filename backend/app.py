@@ -355,7 +355,7 @@ INT_COLUMNS = {
     "id", "user_id", "store_id", "category_id", "product_id", "order_id",
     "affiliate_id", "referrer_id", "referred_id", "author_id", "view_count",
     "sold_count", "review_count", "stock", "sort_order", "preorder_days",
-    "shelf_life_days", "quantity"
+    "shelf_life_days", "quantity", "min_order"
 }
 
 def _coerce_filter_val(key: str, val: Any) -> Any:

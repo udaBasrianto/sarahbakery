@@ -37,9 +37,16 @@ export function CartItem({ item }: CartItemProps) {
           <h3 className="font-semibold text-foreground line-clamp-1">
             {item.name}
           </h3>
-          <p className="text-sm text-primary font-medium">
-            {formatPrice(item.price)}
-          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-sm text-primary font-medium">
+              {formatPrice(item.price)}
+            </p>
+            {item.min_order && item.min_order > 1 && (
+              <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold rounded-md border border-amber-500/20">
+                Min. {item.min_order} pcs
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -47,7 +54,14 @@ export function CartItem({ item }: CartItemProps) {
               size="icon"
               variant="outline"
               className="h-7 w-7 rounded-full"
-              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+              onClick={() => {
+                const minQty = item.min_order || 1;
+                if (item.quantity <= minQty) {
+                  removeItem(item.id);
+                } else {
+                  updateQuantity(item.id, item.quantity - 1);
+                }
+              }}
             >
               <Minus className="w-3 h-3" />
             </Button>

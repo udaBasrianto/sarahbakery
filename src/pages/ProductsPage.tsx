@@ -129,6 +129,7 @@ export default function ProductsPage() {
                 slug={(product as any).slug}
                 isPreorder={(product as any).is_preorder}
                 preorderDays={(product as any).preorder_days}
+                minOrder={(product as any).min_order}
                 name={product.name}
                 price={Number(product.price)}
                 image_url={product.image_url || undefined}

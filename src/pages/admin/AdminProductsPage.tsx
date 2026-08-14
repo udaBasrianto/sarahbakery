@@ -31,6 +31,7 @@ interface Product {
   brand: string | null;
   is_preorder?: boolean;
   preorder_days?: number | null;
+  min_order?: number | null;
 }
 
 interface ProductForm {
@@ -43,6 +44,7 @@ interface ProductForm {
   brand: string;
   is_preorder: boolean;
   preorder_days: string;
+  min_order: string;
 }
 
 const initialForm: ProductForm = {
@@ -55,6 +57,7 @@ const initialForm: ProductForm = {
   brand: "",
   is_preorder: false,
   preorder_days: "",
+  min_order: "1",
 };
 
 type View = "list" | "form";
@@ -105,6 +108,7 @@ export default function AdminProductsPage() {
         brand: data.brand || null,
         is_preorder: data.is_preorder,
         preorder_days: data.is_preorder && data.preorder_days ? parseInt(data.preorder_days) : 0,
+        min_order: data.min_order ? Math.max(1, parseInt(data.min_order)) : 1,
         store_id: storeId || 1,
       }).select().single();
       if (error) throw error;
@@ -147,6 +151,7 @@ export default function AdminProductsPage() {
           brand: data.brand || null,
           is_preorder: data.is_preorder,
           preorder_days: data.is_preorder && data.preorder_days ? parseInt(data.preorder_days) : 0,
+          min_order: data.min_order ? Math.max(1, parseInt(data.min_order)) : 1,
         })
         .eq("id", id);
       if (error) throw error;
@@ -213,6 +218,7 @@ export default function AdminProductsPage() {
       brand: product.brand || "",
       is_preorder: !!product.is_preorder,
       preorder_days: product.preorder_days ? String(product.preorder_days) : "",
+      min_order: (product.min_order || 1).toString(),
     });
     setView("form");
   };
@@ -291,11 +297,29 @@ export default function AdminProductsPage() {
               value={form.price}
               onChange={(e) => setForm({ ...form, price: e.target.value })}
               className="mt-1"
+              placeholder="Contoh: 25000"
+              required
             />
           </div>
 
           <div>
-            <Label htmlFor="category">Kategori</Label>
+            <Label htmlFor="min_order">Minimal Pemesanan (pcs)</Label>
+            <Input
+              id="min_order"
+              type="number"
+              min="1"
+              value={form.min_order}
+              onChange={(e) => setForm({ ...form, min_order: e.target.value })}
+              className="mt-1"
+              placeholder="1"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Jumlah minimal yang wajib dipesan pelanggan per transaksi (default: 1)
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="brand">Merek / Varian (Opsional)</Label>
             <select
               id="category"
               value={form.category_id}
@@ -524,10 +548,17 @@ export default function AdminProductsPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h3 className="font-semibold text-foreground line-clamp-1">{product.name}</h3>
-                    <p className="text-sm text-primary font-medium">{formatPrice(Number(product.price))}</p>
-                  </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-foreground line-clamp-1">{product.name}</h3>
+                        {product.min_order && product.min_order > 1 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold border border-primary/20">
+                            Min. {product.min_order} pcs
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-primary font-medium">{formatPrice(Number(product.price))}</p>
+                    </div>
                   <span
                     className={`text-xs px-2 py-1 rounded-full ${
                       product.is_available ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"

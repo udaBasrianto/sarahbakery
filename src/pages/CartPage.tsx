@@ -68,6 +68,11 @@ export default function CartPage() {
       toast.error("Keranjang masih kosong");
       return;
     }
+    const invalidMinItem = items.find((i) => i.min_order && i.quantity < i.min_order);
+    if (invalidMinItem) {
+      toast.error(`Produk "${invalidMinItem.name}" minimal dipesan ${invalidMinItem.min_order} pcs`);
+      return;
+    }
     if (isPreorder && !preorderDate) {
       toast.error("Pilih tanggal Pre-Order");
       return;

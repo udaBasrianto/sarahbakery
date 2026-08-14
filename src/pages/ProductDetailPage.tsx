@@ -48,6 +48,16 @@ export default function ProductDetailPage() {
     enabled: !!productId,
   });
 
+  const minOrder = Math.max(1, Number((product as any)?.min_order) || 1);
+
+  // Sync initial quantity with min_order when product loads
+  useEffect(() => {
+    if (product) {
+      const pMin = Math.max(1, Number((product as any)?.min_order) || 1);
+      setQuantity((prev) => Math.max(prev, pMin));
+    }
+  }, [product]);
+
   // Build image list: product_images first, fallback to main image_url
   const allImages = productImages.length > 0
     ? productImages.map((img) => img.image_url)
@@ -64,14 +74,16 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (!product) return;
-    for (let i = 0; i < quantity; i++) {
-      addItem({
+    addItem(
+      {
         id: product.id,
         name: product.name,
         price: Number(product.price),
         image_url: allImages[0] || undefined,
-      });
-    }
+        min_order: minOrder,
+      },
+      quantity
+    );
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 1500);
   };
@@ -228,12 +240,23 @@ export default function ProductDetailPage() {
             <span className={cn("w-2 h-2 rounded-full", product.is_available ? "bg-green-500" : "bg-red-500")} />
             {product.is_available ? "Tersedia" : "Stok Habis"}
           </span>
+          {minOrder > 1 && (
+            <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full font-semibold">
+              📦 Minimal Pemesanan: {minOrder} pcs
+            </span>
+          )}
           {(product as any).is_preorder && (
             <span className="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full font-medium">
               ⏱️ Pre-Order · {(product as any).preorder_days || "?"} hari pengerjaan
             </span>
           )}
         </div>
+        {minOrder > 1 && (
+          <div className="bg-primary/5 border border-primary/15 text-foreground text-xs rounded-xl p-3 flex items-center gap-2">
+            <span>💡</span>
+            <span>Produk ini memiliki batas minimal pemesanan <strong>{minOrder} pcs</strong> per pesanan.</span>
+          </div>
+        )}
         {(product as any).is_preorder && (
           <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl p-3">
             Produk ini dibuat setelah pesanan masuk. Mohon pesan minimal{" "}
@@ -255,7 +278,7 @@ export default function ProductDetailPage() {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 rounded-full"
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                onClick={() => setQuantity(Math.max(minOrder, quantity - 1))}
               >
                 <Minus className="w-4 h-4" />
               </Button>

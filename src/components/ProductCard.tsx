@@ -23,6 +23,7 @@ interface ProductCardProps {
   isLoggedIn?: boolean;
   isPreorder?: boolean;
   preorderDays?: number | null;
+  minOrder?: number | null;
   variant?: ProductCardVariant;
 }
 
@@ -42,15 +43,18 @@ export function ProductCard({
   isLoggedIn = false,
   isPreorder = false,
   preorderDays,
+  minOrder = 1,
   variant = "grid",
 }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem);
   const [isAdded, setIsAdded] = useState(false);
   const navigate = useNavigate();
 
+  const effectiveMin = Math.max(1, Number(minOrder) || 1);
+
   const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
-    addItem({ id, name, price, image_url });
+    addItem({ id, name, price, image_url, min_order: effectiveMin });
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 1500);
   };
@@ -109,6 +113,11 @@ export function ProductCard({
           {isPreorder && (
             <span className="absolute top-1.5 left-1.5 z-10 text-[9px] font-semibold bg-amber-500 text-white px-1.5 py-0.5 rounded-full">
               PO
+            </span>
+          )}
+          {effectiveMin > 1 && (
+            <span className="absolute bottom-1.5 left-1.5 z-10 text-[9px] font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md shadow-sm">
+              Min. {effectiveMin}
             </span>
           )}
         </div>
@@ -205,6 +214,11 @@ export function ProductCard({
               PO · {preorderDays || "?"} Hari
             </span>
           )}
+          {effectiveMin > 1 && (
+            <span className="absolute bottom-3 left-3 z-10 text-xs font-semibold bg-primary text-primary-foreground px-2.5 py-1 rounded-full shadow-soft">
+              Min. {effectiveMin} pcs
+            </span>
+          )}
         </div>
         <div className="p-4">
           <div className="flex items-start justify-between gap-2">
@@ -253,12 +267,12 @@ export function ProductCard({
               {isAdded ? (
                 <>
                   <Check className="w-4 h-4" />
-                  <span>Masuk Keranjang</span>
+                  <span>Ditambahkan</span>
                 </>
               ) : (
                 <>
                   <Plus className="w-4 h-4" />
-                  <span>+ Tambah Keranjang</span>
+                  <span>Beli Sekarang</span>
                 </>
               )}
             </Button>
@@ -307,6 +321,11 @@ export function ProductCard({
         {isPreorder && (
           <span className="absolute top-2 left-2 z-10 text-[10px] font-semibold bg-amber-500 text-white px-2 py-0.5 rounded-full shadow-soft">
             PO · {preorderDays || "?"}h
+          </span>
+        )}
+        {effectiveMin > 1 && (
+          <span className="absolute bottom-2 left-2 z-10 text-[10px] font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-md shadow-soft">
+            Min. {effectiveMin} pcs
           </span>
         )}
       </div>
