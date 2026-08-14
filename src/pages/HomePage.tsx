@@ -25,6 +25,16 @@ export default function HomePage() {
     localStorage.setItem("sarahbakery_home_view_mode", mode);
   };
 
+  // Article view mode state: "grid" (2 kolom) | "list" (baris list)
+  const [articleViewMode, setArticleViewMode] = useState<"grid" | "list">(() => {
+    return (localStorage.getItem("sarahbakery_home_article_view") as "grid" | "list") || "grid";
+  });
+
+  const handleArticleViewChange = (mode: "grid" | "list") => {
+    setArticleViewMode(mode);
+    localStorage.setItem("sarahbakery_home_article_view", mode);
+  };
+
   const homeJsonLd = {
     "@context": "https://schema.org",
     "@type": "Bakery",
@@ -287,7 +297,7 @@ export default function HomePage() {
       {/* Latest Articles Section */}
       {latestArticles.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4 mb-16">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 gap-2">
             <div className="flex items-center gap-2">
               <div className="p-1.5 rounded-xl bg-primary/10 text-primary">
                 <Newspaper className="w-5 h-5" />
@@ -297,27 +307,78 @@ export default function HomePage() {
                   Artikel &amp; Resep Terbaru
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  Tips memanggang, resep kue lezat, dan cerita dapur Sarah
+                  Tips memanggang &amp; resep kue lezat dapur Sarah
                 </p>
               </div>
             </div>
-            <Link
-              to="/blog"
-              className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5"
-            >
-              Lihat Semua <ChevronRight className="w-4 h-4" />
-            </Link>
+
+            <div className="flex items-center gap-2">
+              {/* 2 Kolom Grid vs List Switcher */}
+              <div className="flex items-center gap-1 bg-secondary/80 p-1 rounded-full border border-border/70 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => handleArticleViewChange("grid")}
+                  className={cn(
+                    "w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300",
+                    articleViewMode === "grid"
+                      ? "bg-card text-primary shadow-md scale-105 border border-border/40 font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Tampilan 2 Kolom Grid"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleArticleViewChange("list")}
+                  className={cn(
+                    "w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300",
+                    articleViewMode === "list"
+                      ? "bg-card text-primary shadow-md scale-105 border border-border/40 font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Tampilan Baris List"
+                >
+                  <List className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <Link
+                to="/blog"
+                className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5 shrink-0 pl-1"
+              >
+                Lihat Semua <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Articles Container: 2 Kolom Grid atau List Row */}
+          <div
+            className={cn(
+              articleViewMode === "grid" && "grid grid-cols-2 gap-3",
+              articleViewMode === "list" && "flex flex-col gap-3"
+            )}
+          >
             {latestArticles.map((article: any) => (
               <Link
                 key={article.id}
                 to={`/blog/${article.slug}`}
-                className="group bg-card border border-border/80 rounded-2xl overflow-hidden shadow-soft hover:shadow-md transition-all flex flex-col"
+                className={cn(
+                  "group bg-card border border-border/80 rounded-2xl overflow-hidden shadow-soft hover:shadow-md hover:border-primary/40 transition-all",
+                  articleViewMode === "grid" && "flex flex-col",
+                  articleViewMode === "list" && "flex items-center gap-3 p-3"
+                )}
               >
+                {/* Image */}
                 {article.cover_image && (
-                  <div className="aspect-[16/9] w-full overflow-hidden bg-muted">
+                  <div
+                    className={cn(
+                      "overflow-hidden bg-muted shrink-0",
+                      articleViewMode === "grid" && "aspect-[16/10] w-full",
+                      articleViewMode === "list" && "w-20 h-20 sm:w-24 sm:h-24 rounded-xl"
+                    )}
+                  >
                     <img
                       src={article.cover_image}
                       alt={article.title}
@@ -326,20 +387,33 @@ export default function HomePage() {
                     />
                   </div>
                 )}
-                <div className="p-4 flex-1 flex flex-col justify-between">
+
+                {/* Content */}
+                <div
+                  className={cn(
+                    "flex-1 flex flex-col justify-between",
+                    articleViewMode === "grid" && "p-3 sm:p-4",
+                    articleViewMode === "list" && "py-0.5"
+                  )}
+                >
                   <div>
-                    <h3 className="font-display font-bold text-sm sm:text-base text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+                    <h3
+                      className={cn(
+                        "font-display font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2",
+                        articleViewMode === "grid" ? "text-xs sm:text-sm" : "text-sm sm:text-base"
+                      )}
+                    >
                       {article.title}
                     </h3>
-                    {article.excerpt && (
-                      <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
+                    {article.excerpt && articleViewMode === "list" && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
                         {article.excerpt}
                       </p>
                     )}
                   </div>
                   {article.published_at && (
-                    <div className="flex items-center gap-1.5 mt-3 text-[11px] text-muted-foreground pt-2 border-t border-border/50">
-                      <Calendar className="w-3.5 h-3.5" />
+                    <div className="flex items-center gap-1.5 mt-2 text-[10px] sm:text-xs text-muted-foreground">
+                      <Calendar className="w-3 h-3" />
                       <span>
                         {new Date(article.published_at).toLocaleDateString("id-ID", {
                           day: "numeric",
