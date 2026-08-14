@@ -32,7 +32,6 @@ import AdminBlogPage from "./pages/admin/AdminBlogPage";
 import AdminAffiliatesPage from "./pages/admin/AdminAffiliatesPage";
 import AdminCategoriesPage from "./pages/admin/AdminCategoriesPage";
 import AffiliatePage from "./pages/AffiliatePage";
-import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import SitemapPage from "./pages/SitemapPage";
 import NotFound from "./pages/NotFound";
 
@@ -100,7 +99,6 @@ const App = () => (
         </Routes>
         <BottomNav />
         <ChatBot />
-        <PWAInstallPrompt />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
