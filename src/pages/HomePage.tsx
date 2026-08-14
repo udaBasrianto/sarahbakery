@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/integrations/api/client";
@@ -33,6 +33,36 @@ export default function HomePage() {
   const handleArticleViewChange = (mode: "grid" | "list") => {
     setArticleViewMode(mode);
     localStorage.setItem("sarahbakery_home_article_view", mode);
+  };
+
+  // Drag-to-scroll with mouse/cursor for under-slider discovery row
+  const underSliderScrollRef = useRef<HTMLDivElement>(null);
+  const [isDraggingUnderSlider, setIsDraggingUnderSlider] = useState(false);
+  const [underSliderStartX, setUnderSliderStartX] = useState(0);
+  const [underSliderScrollLeft, setUnderSliderScrollLeft] = useState(0);
+  const [hasMovedUnderSlider, setHasMovedUnderSlider] = useState(false);
+
+  const handleUnderSliderMouseDown = (e: React.MouseEvent) => {
+    if (!underSliderScrollRef.current) return;
+    setIsDraggingUnderSlider(true);
+    setHasMovedUnderSlider(false);
+    setUnderSliderStartX(e.pageX - underSliderScrollRef.current.offsetLeft);
+    setUnderSliderScrollLeft(underSliderScrollRef.current.scrollLeft);
+  };
+
+  const handleUnderSliderMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingUnderSlider || !underSliderScrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - underSliderScrollRef.current.offsetLeft;
+    const walk = (x - underSliderStartX) * 1.3;
+    if (Math.abs(walk) > 4) {
+      setHasMovedUnderSlider(true);
+    }
+    underSliderScrollRef.current.scrollLeft = underSliderScrollLeft - walk;
+  };
+
+  const handleUnderSliderMouseUp = () => {
+    setIsDraggingUnderSlider(false);
   };
 
   const homeJsonLd = {
@@ -138,12 +168,25 @@ export default function HomePage() {
       {/* Hero Slider */}
       <HeroSlider />
 
-      {/* Horizontal Scrollable Discovery Row under Slider */}
+      {/* Horizontal Scrollable Discovery Row under Slider (Draggable with Mouse/Pointer) */}
       <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-3">
-        <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar scrollbar-hide pb-1">
+        <div
+          ref={underSliderScrollRef}
+          onMouseDown={handleUnderSliderMouseDown}
+          onMouseMove={handleUnderSliderMouseMove}
+          onMouseUp={handleUnderSliderMouseUp}
+          onMouseLeave={handleUnderSliderMouseUp}
+          className={cn(
+            "flex items-center gap-2.5 overflow-x-auto no-scrollbar scrollbar-hide pb-1 select-none cursor-grab active:cursor-grabbing",
+            isDraggingUnderSlider && "cursor-grabbing"
+          )}
+        >
           <Link
             to="/custom-order"
-            className="flex items-center gap-2.5 px-3.5 py-2 bg-gradient-to-r from-primary/10 via-amber-500/10 to-primary/5 border border-primary/20 rounded-2xl hover:border-primary/40 transition-all shrink-0 group shadow-xs"
+            onClick={(e) => {
+              if (hasMovedUnderSlider) e.preventDefault();
+            }}
+            className="flex items-center gap-2.5 px-3.5 py-2 bg-gradient-to-r from-primary/10 via-amber-500/10 to-primary/5 border border-primary/20 rounded-2xl hover:border-primary/40 transition-all shrink-0 group shadow-xs pointer-events-auto"
           >
             <span className="w-7 h-7 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shadow-xs">
               ✨
@@ -156,7 +199,10 @@ export default function HomePage() {
 
           <Link
             to="/community"
-            className="flex items-center gap-2.5 px-3.5 py-2 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-primary/10 border border-amber-500/30 rounded-2xl hover:border-amber-500/50 transition-all shrink-0 group shadow-xs"
+            onClick={(e) => {
+              if (hasMovedUnderSlider) e.preventDefault();
+            }}
+            className="flex items-center gap-2.5 px-3.5 py-2 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-primary/10 border border-amber-500/30 rounded-2xl hover:border-amber-500/50 transition-all shrink-0 group shadow-xs pointer-events-auto"
           >
             <span className="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xs font-bold shadow-xs">
               👩‍🍳
@@ -174,7 +220,10 @@ export default function HomePage() {
 
           <Link
             to="/blog"
-            className="flex items-center gap-2.5 px-3.5 py-2 bg-card border border-border/80 rounded-2xl hover:border-primary/40 transition-all shrink-0 group shadow-xs"
+            onClick={(e) => {
+              if (hasMovedUnderSlider) e.preventDefault();
+            }}
+            className="flex items-center gap-2.5 px-3.5 py-2 bg-card border border-border/80 rounded-2xl hover:border-primary/40 transition-all shrink-0 group shadow-xs pointer-events-auto"
           >
             <span className="w-7 h-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
               📖
@@ -187,7 +236,10 @@ export default function HomePage() {
 
           <Link
             to="/affiliate"
-            className="flex items-center gap-2.5 px-3.5 py-2 bg-card border border-border/80 rounded-2xl hover:border-primary/40 transition-all shrink-0 group shadow-xs"
+            onClick={(e) => {
+              if (hasMovedUnderSlider) e.preventDefault();
+            }}
+            className="flex items-center gap-2.5 px-3.5 py-2 bg-card border border-border/80 rounded-2xl hover:border-primary/40 transition-all shrink-0 group shadow-xs pointer-events-auto"
           >
             <span className="w-7 h-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
               🎁
