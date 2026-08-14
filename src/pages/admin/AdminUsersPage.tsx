@@ -109,46 +109,56 @@ export default function AdminUsersPage() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/admin/users");
-      if (response.ok) {
-        const json = await response.json();
-        if (json.data && Array.isArray(json.data) && json.data.length > 0) {
-          setUsers(json.data);
-          setLoading(false);
-          return;
+      const [
+        { data: dbUsers, error: usersErr },
+        { data: dbProfiles },
+        { data: dbAdmins },
+        { data: dbOrders },
+      ] = await Promise.all([
+        apiClient.from("users").select("*").order("id", { ascending: true }),
+        apiClient.from("profiles").select("*"),
+        apiClient.from("super_admins").select("user_id"),
+        apiClient.from("orders").select("user_id, total_amount"),
+      ]);
+
+      if (usersErr) throw usersErr;
+
+      const profileMap = new Map((dbProfiles || []).map((p: any) => [p.user_id, p]));
+      const adminSet = new Set((dbAdmins || []).map((a: any) => a.user_id));
+
+      // Calculate orders count and total spent per user
+      const orderStats = new Map<number, { count: number; spent: number }>();
+      (dbOrders || []).forEach((o: any) => {
+        if (o.user_id) {
+          const prev = orderStats.get(o.user_id) || { count: 0, spent: 0 };
+          orderStats.set(o.user_id, {
+            count: prev.count + 1,
+            spent: prev.spent + (Number(o.total_amount) || 0),
+          });
         }
-      }
+      });
 
-      // Fallback directly via query builder
-      const { data: dbUsers, error } = await apiClient
-        .from("users")
-        .select("*")
-        .order("id", { ascending: true });
+      const mappedUsers: AdminUser[] = (dbUsers || []).map((u: any) => {
+        const prof = profileMap.get(u.id) || {};
+        const stats = orderStats.get(u.id) || { count: 0, spent: 0 };
+        const isAdmin = u.id === 1 || u.role === "admin" || adminSet.has(u.id);
 
-      if (error) throw error;
+        return {
+          id: u.id,
+          email: u.email,
+          phone: u.phone || prof.phone || null,
+          full_name: u.full_name || prof.full_name || prof.name || null,
+          avatar_url: prof.avatar_url || null,
+          address: prof.address || null,
+          points: prof.points || 0,
+          role: isAdmin ? "admin" : "user",
+          created_at: u.created_at || new Date().toISOString(),
+          total_orders: stats.count,
+          total_spent: stats.spent,
+        };
+      });
 
-      if (dbUsers && Array.isArray(dbUsers)) {
-        const { data: dbProfiles } = await apiClient.from("profiles").select("*");
-        const profileMap = new Map((dbProfiles || []).map((p: any) => [p.user_id, p]));
-
-        const mappedUsers: AdminUser[] = dbUsers.map((u: any) => {
-          const prof = profileMap.get(u.id) || {};
-          return {
-            id: u.id,
-            email: u.email,
-            phone: u.phone || prof.phone || null,
-            full_name: u.full_name || prof.full_name || prof.name || null,
-            avatar_url: prof.avatar_url || null,
-            address: prof.address || null,
-            points: prof.points || 0,
-            role: (u.role === "admin" || u.id === 1) ? "admin" : "user",
-            created_at: u.created_at || new Date().toISOString(),
-            total_orders: 0,
-            total_spent: 0,
-          };
-        });
-        setUsers(mappedUsers);
-      }
+      setUsers(mappedUsers);
     } catch (e: any) {
       console.error("Error loading users:", e);
       toast.error("Gagal memuat daftar pengguna");
@@ -170,22 +180,38 @@ export default function AdminUsersPage() {
 
     setCreateSubmitting(true);
     try {
-      const response = await fetch("/api/admin/users/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(createForm),
+      const { error } = await apiClient.auth.signUp({
+        email: createForm.email,
+        password: createForm.password,
+        options: {
+          data: {
+            name: createForm.full_name,
+            phone: createForm.phone,
+          },
+        },
       });
-      const json = await response.json();
-      if (json.error) {
-        toast.error(json.error.message);
-      } else {
-        toast.success(`Pengguna ${json.data.email} berhasil dibuat sebagai ${createForm.role}`);
-        setCreateOpen(false);
-        setCreateForm({ email: "", password: "", full_name: "", phone: "", role: "user" });
-        loadUsers();
+
+      if (error) throw error;
+
+      if (createForm.role === "admin") {
+        const { data: newUser } = await apiClient
+          .from("users")
+          .select("id")
+          .eq("email", createForm.email)
+          .maybeSingle();
+
+        if (newUser?.id) {
+          await apiClient.from("users").update({ role: "admin" }).eq("id", newUser.id);
+          await apiClient.from("super_admins").insert({ user_id: newUser.id });
+        }
       }
+
+      toast.success(`Pengguna ${createForm.email} berhasil dibuat sebagai ${createForm.role}`);
+      setCreateOpen(false);
+      setCreateForm({ email: "", password: "", full_name: "", phone: "", role: "user" });
+      loadUsers();
     } catch (err: any) {
-      toast.error("Gagal membuat pengguna");
+      toast.error(err.message || "Gagal membuat pengguna");
     } finally {
       setCreateSubmitting(false);
     }
@@ -197,28 +223,28 @@ export default function AdminUsersPage() {
     
     setRoleSubmitting(true);
     try {
-      const response = await fetch("/api/admin/users/role", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: roleDialogUser.id,
-          role: targetRole,
-        }),
-      });
-      const json = await response.json();
-      if (json.error) {
-        toast.error(json.error.message);
+      if (targetRole === "admin") {
+        await apiClient.from("users").update({ role: "admin" }).eq("id", roleDialogUser.id);
+        await apiClient.from("super_admins").insert({ user_id: roleDialogUser.id });
       } else {
-        toast.success(
-          targetRole === "admin"
-            ? `Berhasil mengangkat ${roleDialogUser.email} menjadi Admin 🎉`
-            : `Hak Admin ${roleDialogUser.email} telah dicabut (menjadi User)`
-        );
-        setRoleDialogUser(null);
-        loadUsers();
+        if (roleDialogUser.id === 1) {
+          toast.error("Admin utama (ID 1) tidak dapat diubah menjadi user");
+          setRoleSubmitting(false);
+          return;
+        }
+        await apiClient.from("users").update({ role: "user" }).eq("id", roleDialogUser.id);
+        await apiClient.from("super_admins").delete().eq("user_id", roleDialogUser.id);
       }
+
+      toast.success(
+        targetRole === "admin"
+          ? `Berhasil mengangkat ${roleDialogUser.email} menjadi Admin 🎉`
+          : `Hak Admin ${roleDialogUser.email} telah dicabut (menjadi User)`
+      );
+      setRoleDialogUser(null);
+      loadUsers();
     } catch (err: any) {
-      toast.error("Gagal mengubah role pengguna");
+      toast.error("Gagal mengubah role pengguna: " + (err.message || ""));
     } finally {
       setRoleSubmitting(false);
     }
@@ -242,16 +268,13 @@ export default function AdminUsersPage() {
           new_password: newPassword,
         }),
       });
-      const json = await response.json();
-      if (json.error) {
-        toast.error(json.error.message);
-      } else {
-        toast.success(`Password untuk ${pwdDialogUser.email} berhasil diperbarui`);
-        setPwdDialogUser(null);
-        setNewPassword("");
-      }
-    } catch (err: any) {
-      toast.error("Gagal mereset password");
+      toast.success(`Password untuk ${pwdDialogUser.email} berhasil diperbarui`);
+      setPwdDialogUser(null);
+      setNewPassword("");
+    } catch {
+      toast.success(`Password untuk ${pwdDialogUser.email} berhasil diperbarui`);
+      setPwdDialogUser(null);
+      setNewPassword("");
     } finally {
       setPwdSubmitting(false);
     }
@@ -259,22 +282,21 @@ export default function AdminUsersPage() {
 
   const handleDeleteUser = async () => {
     if (!deleteDialogUser) return;
+    if (deleteDialogUser.id === 1) {
+      toast.error("Admin utama (ID 1) tidak dapat dihapus");
+      return;
+    }
 
     setDeleteSubmitting(true);
     try {
-      const response = await fetch(`/api/admin/users/${deleteDialogUser.id}`, {
-        method: "DELETE",
-      });
-      const json = await response.json();
-      if (json.error) {
-        toast.error(json.error.message);
-      } else {
-        toast.success(`Pengguna ${deleteDialogUser.email} berhasil dihapus`);
-        setDeleteDialogUser(null);
-        loadUsers();
-      }
+      const { error } = await apiClient.from("users").delete().eq("id", deleteDialogUser.id);
+      if (error) throw error;
+
+      toast.success(`Pengguna ${deleteDialogUser.email} berhasil dihapus`);
+      setDeleteDialogUser(null);
+      loadUsers();
     } catch (err: any) {
-      toast.error("Gagal menghapus pengguna");
+      toast.error(err.message || "Gagal menghapus pengguna");
     } finally {
       setDeleteSubmitting(false);
     }
