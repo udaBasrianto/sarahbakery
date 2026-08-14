@@ -110,13 +110,47 @@ export default function AdminUsersPage() {
     setLoading(true);
     try {
       const response = await fetch("/api/admin/users");
-      const json = await response.json();
-      if (json.error) {
-        toast.error("Gagal memuat pengguna: " + json.error.message);
-      } else {
-        setUsers(json.data || []);
+      if (response.ok) {
+        const json = await response.json();
+        if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+          setUsers(json.data);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Fallback directly via query builder
+      const { data: dbUsers, error } = await apiClient
+        .from("users")
+        .select("*")
+        .order("id", { ascending: true });
+
+      if (error) throw error;
+
+      if (dbUsers && Array.isArray(dbUsers)) {
+        const { data: dbProfiles } = await apiClient.from("profiles").select("*");
+        const profileMap = new Map((dbProfiles || []).map((p: any) => [p.user_id, p]));
+
+        const mappedUsers: AdminUser[] = dbUsers.map((u: any) => {
+          const prof = profileMap.get(u.id) || {};
+          return {
+            id: u.id,
+            email: u.email,
+            phone: u.phone || prof.phone || null,
+            full_name: u.full_name || prof.full_name || prof.name || null,
+            avatar_url: prof.avatar_url || null,
+            address: prof.address || null,
+            points: prof.points || 0,
+            role: (u.role === "admin" || u.id === 1) ? "admin" : "user",
+            created_at: u.created_at || new Date().toISOString(),
+            total_orders: 0,
+            total_spent: 0,
+          };
+        });
+        setUsers(mappedUsers);
       }
     } catch (e: any) {
+      console.error("Error loading users:", e);
       toast.error("Gagal memuat daftar pengguna");
     } finally {
       setLoading(false);

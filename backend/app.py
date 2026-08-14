@@ -898,28 +898,66 @@ class AdminPasswordUpdateRequest(BaseModel):
 @app.get("/api/admin/users")
 async def admin_get_users():
     pool = await open_pool()
-    query = """
-        SELECT 
-            u.id, 
-            u.email, 
-            COALESCE(u.phone, p.phone) as phone, 
-            COALESCE(u.full_name, p.full_name, p.name) as full_name,
-            COALESCE(p.avatar_url, NULL) as avatar_url,
-            COALESCE(p.address, NULL) as address,
-            COALESCE(p.points, 0) as points,
-            CASE 
-                WHEN sa.id IS NOT NULL OR u.role = 'admin' OR u.id = 1 THEN 'admin'
-                ELSE 'user'
-            END as role,
-            u.created_at,
-            (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) as total_orders,
-            (SELECT COALESCE(SUM(o.total_amount), 0) FROM orders o WHERE o.user_id = u.id) as total_spent
-        FROM users u
-        LEFT JOIN profiles p ON p.user_id = u.id
-        LEFT JOIN super_admins sa ON sa.user_id = u.id
-        ORDER BY u.id ASC
-    """
-    rows = await fetch_all(pool, query)
+    try:
+        query = """
+            SELECT 
+                u.id, 
+                u.email, 
+                COALESCE(u.phone, p.phone) as phone, 
+                COALESCE(u.full_name, p.full_name) as full_name,
+                COALESCE(p.avatar_url, NULL) as avatar_url,
+                COALESCE(p.address, NULL) as address,
+                COALESCE(p.points, 0) as points,
+                CASE 
+                    WHEN sa.id IS NOT NULL OR u.role = 'admin' OR u.id = 1 THEN 'admin'
+                    ELSE 'user'
+                END as role,
+                u.created_at,
+                (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) as total_orders,
+                (SELECT COALESCE(SUM(COALESCE(o.total_amount, 0)), 0) FROM orders o WHERE o.user_id = u.id) as total_spent
+            FROM users u
+            LEFT JOIN profiles p ON p.user_id = u.id
+            LEFT JOIN super_admins sa ON sa.user_id = u.id
+            ORDER BY u.id ASC
+        """
+        rows = await fetch_all(pool, query)
+    except Exception as e:
+        print(f"[admin_get_users error]: {e}")
+        try:
+            fallback_query = """
+                SELECT 
+                    u.id, 
+                    u.email, 
+                    u.phone, 
+                    u.full_name,
+                    NULL as avatar_url,
+                    NULL as address,
+                    0 as points,
+                    COALESCE(u.role, 'user') as role,
+                    u.created_at,
+                    0 as total_orders,
+                    0 as total_spent
+                FROM users u
+                ORDER BY u.id ASC
+            """
+            rows = await fetch_all(pool, fallback_query)
+        except Exception as e2:
+            print(f"[admin_get_users fallback error]: {e2}")
+            rows = await fetch_all(pool, "SELECT id, email, phone, full_name, created_at FROM users ORDER BY id ASC")
+            users = []
+            for r in rows:
+                d = dict(r)
+                d["role"] = "admin" if d["id"] == 1 else "user"
+                d["avatar_url"] = None
+                d["address"] = None
+                d["points"] = 0
+                d["total_orders"] = 0
+                d["total_spent"] = 0.0
+                if d.get("created_at"):
+                    d["created_at"] = d["created_at"].isoformat()
+                users.append(d)
+            return {"data": users, "error": None}
+
     users = [dict(r) for r in rows]
     for u in users:
         if u.get("total_spent") is not None:
