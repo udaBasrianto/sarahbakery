@@ -32,6 +32,10 @@ import AdminBlogPage from "./pages/admin/AdminBlogPage";
 import AdminAffiliatesPage from "./pages/admin/AdminAffiliatesPage";
 import AdminCategoriesPage from "./pages/admin/AdminCategoriesPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminCommunityRecipesPage from "./pages/admin/AdminCommunityRecipesPage";
+import CommunityFeedPage from "./pages/CommunityFeedPage";
+import CreateRecipePage from "./pages/CreateRecipePage";
+import RecipeDetailPage from "./pages/RecipeDetailPage";
 import AffiliatePage from "./pages/AffiliatePage";
 import SitemapPage from "./pages/SitemapPage";
 import NotFound from "./pages/NotFound";
@@ -77,6 +81,9 @@ const App = () => (
             <Route path="/dashboard/affiliate" element={<AffiliatePage />} />
             <Route path="/blog" element={<BlogListPage />} />
             <Route path="/blog/:slug" element={<BlogDetailPage />} />
+            <Route path="/community" element={<CommunityFeedPage />} />
+            <Route path="/community/create" element={<CreateRecipePage />} />
+            <Route path="/community/:slug" element={<RecipeDetailPage />} />
             <Route path="/sitemap" element={<SitemapPage />} />
           </Route>
 
@@ -90,6 +97,7 @@ const App = () => (
             <Route path="/admin/orders" element={<AdminOrdersPage />} />
             <Route path="/admin/banners" element={<AdminBannersPage />} />
             <Route path="/admin/blog" element={<AdminBlogPage />} />
+            <Route path="/admin/recipes" element={<AdminCommunityRecipesPage />} />
             <Route path="/admin/affiliates" element={<AdminAffiliatesPage />} />
             <Route path="/admin/reports" element={<AdminReportsPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />

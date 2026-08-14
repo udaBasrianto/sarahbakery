@@ -14,7 +14,8 @@ import {
   LayoutDashboard,
   Heart,
   Gift,
-  Newspaper
+  Newspaper,
+  ChefHat
 } from "lucide-react";
 import { useWishlist } from "@/hooks/useWishlist";
 import { toast } from "sonner";
@@ -349,6 +350,17 @@ export default function DashboardPage() {
             <div className="flex items-center gap-3">
               <Gift className="w-5 h-5 text-primary" />
               <span className="text-foreground">Program Affiliate</span>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </Link>
+          <div className="border-t border-border" />
+          <Link
+            to="/community"
+            className="flex items-center justify-between p-4 hover:bg-secondary/50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <ChefHat className="w-5 h-5 text-primary" />
+              <span className="text-foreground">Komunitas Resep Baking</span>
             </div>
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </Link>

@@ -15,7 +15,8 @@ import {
   FileBarChart,
   Newspaper,
   Gift,
-  Users
+  Users,
+  ChefHat
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ const navItems = [
   { icon: Users, label: "Pengguna & Role", path: "/admin/users" },
   { icon: Gift, label: "Affiliate", path: "/admin/affiliates" },
   { icon: Newspaper, label: "Artikel & Blog", path: "/admin/blog" },
+  { icon: ChefHat, label: "Resep Komunitas", path: "/admin/recipes" },
   { icon: Image, label: "Banner", path: "/admin/banners" },
   { icon: Settings, label: "Pengaturan", path: "/admin/settings" },
 ];
