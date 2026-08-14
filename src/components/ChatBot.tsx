@@ -103,18 +103,25 @@ export function ChatBot() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith("/admin");
 
-  const { data: chatbotEnabled } = useQuery({
-    queryKey: ["setting", "chatbot_enabled"],
+  const { data: chatbotSettings } = useQuery({
+    queryKey: ["setting", "chatbot_configs"],
     queryFn: async () => {
       const { data } = await apiClient
         .from("settings")
-        .select("value")
-        .eq("key", "chatbot_enabled")
-        .maybeSingle();
-      return data?.value !== "false";
+        .select("key, value");
+      const map = new Map((data || []).map((s: any) => [s.key, s.value]));
+      return {
+        enabled: map.get("chatbot_enabled") !== "false",
+        name: map.get("chatbot_name") || "Sarah Assistant",
+        welcome: map.get("chatbot_welcome") || "Halo! 👋 Saya asisten Sarah Bakery. Tanyakan menu roti, kue ulang tahun, atau rekomendasi favorit Anda!",
+      };
     },
     staleTime: 60_000,
   });
+
+  const chatbotEnabled = chatbotSettings?.enabled ?? true;
+  const chatbotName = chatbotSettings?.name || "Sarah Assistant";
+  const chatbotWelcome = chatbotSettings?.welcome || "Halo! 👋 Saya asisten Sarah Bakery.";
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -190,7 +197,7 @@ export function ChatBot() {
                 <Bot className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground">Sarah Assistant</p>
+                <p className="text-sm font-semibold text-foreground">{chatbotName}</p>
                 <p className="text-xs text-muted-foreground">Siap membantu Anda 🍰</p>
               </div>
             </div>
@@ -211,8 +218,8 @@ export function ChatBot() {
             {messages.length === 0 && (
               <div className="text-center text-muted-foreground text-sm py-6">
                 <Bot className="w-10 h-10 mx-auto mb-3 text-primary/40" />
-                <p>Halo! 👋 Saya asisten Sarah Bakery.</p>
-                <p className="mt-1 mb-4">Tanyakan produk atau resep favorit Anda!</p>
+                <p className="font-semibold text-foreground">{chatbotName}</p>
+                <p className="mt-1 mb-4 text-xs whitespace-pre-wrap">{chatbotWelcome}</p>
                 <div className="flex flex-wrap gap-2 justify-center">
                   {[
                     "Produk apa yang paling laris?",

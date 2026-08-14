@@ -2,9 +2,35 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Settings, User, Lock, Phone, Save, Loader2, Bot, Palette, Check, Shield, Key, ExternalLink, AlertCircle, CheckCircle2, XCircle, Eye, EyeOff, LayoutGrid } from "lucide-react";
+import { 
+  Settings, 
+  User, 
+  Lock, 
+  Phone, 
+  Save, 
+  Loader2, 
+  Bot, 
+  Palette, 
+  Check, 
+  Shield, 
+  Key, 
+  ExternalLink, 
+  AlertCircle, 
+  CheckCircle2, 
+  XCircle, 
+  Eye, 
+  EyeOff, 
+  LayoutGrid, 
+  Store, 
+  Clock, 
+  CreditCard, 
+  Mail, 
+  MapPin, 
+  MessageSquare 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -27,9 +53,34 @@ import {
 import { toast } from "sonner";
 import AdminPageLayout from "./AdminPageLayout";
 
+// Helper for upserting settings in database
+async function upsertSetting(key: string, value: string) {
+  const { data: existing } = await apiClient
+    .from("settings")
+    .select("id")
+    .eq("key", key)
+    .maybeSingle();
+
+  return existing
+    ? apiClient.from("settings").update({ value }).eq("key", key)
+    : apiClient.from("settings").insert({ key, value, store_id: 1 });
+}
+
+// Schemas
+const storeSchema = z.object({
+  storeName: z.string().min(2, "Nama toko minimal 2 karakter"),
+  storeTagline: z.string().optional(),
+  storeAddress: z.string().optional(),
+  storeHours: z.string().optional(),
+  storeEmail: z.string().email("Email tidak valid").optional().or(z.literal("")),
+  storeBankInfo: z.string().optional(),
+});
+
 const profileSchema = z.object({
   name: z.string().min(2, "Nama minimal 2 karakter").max(100, "Nama maksimal 100 karakter"),
   email: z.string().email("Email tidak valid"),
+  phone: z.string().optional(),
+  address: z.string().optional(),
 });
 
 const passwordSchema = z.object({
@@ -46,6 +97,12 @@ const whatsappSchema = z.object({
     .min(10, "Nomor WhatsApp minimal 10 digit")
     .max(15, "Nomor WhatsApp maksimal 15 digit")
     .regex(/^[0-9]+$/, "Nomor WhatsApp hanya boleh berisi angka"),
+  whatsappGreeting: z.string().optional(),
+});
+
+const chatbotSchema = z.object({
+  chatbotName: z.string().min(2, "Nama asisten minimal 2 karakter"),
+  chatbotWelcome: z.string().min(5, "Pesan sambutan minimal 5 karakter"),
 });
 
 const googleOAuthSchema = z.object({
@@ -53,18 +110,22 @@ const googleOAuthSchema = z.object({
   clientSecret: z.string().min(5, "Client Secret minimal 5 karakter").optional().or(z.literal("")),
 });
 
+type StoreFormValues = z.infer<typeof storeSchema>;
 type ProfileFormValues = z.infer<typeof profileSchema>;
 type PasswordFormValues = z.infer<typeof passwordSchema>;
 type WhatsappFormValues = z.infer<typeof whatsappSchema>;
+type ChatbotFormValues = z.infer<typeof chatbotSchema>;
 type GoogleOAuthFormValues = z.infer<typeof googleOAuthSchema>;
 
 export default function AdminSettingsPage() {
+  const [isLoadingStore, setIsLoadingStore] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [isLoadingPassword, setIsLoadingPassword] = useState(false);
   const [isLoadingWhatsapp, setIsLoadingWhatsapp] = useState(false);
+  const [isLoadingChatbotForm, setIsLoadingChatbotForm] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [chatbotEnabled, setChatbotEnabled] = useState(true);
-  const [isLoadingChatbot, setIsLoadingChatbot] = useState(false);
+  const [isLoadingChatbotToggle, setIsLoadingChatbotToggle] = useState(false);
   const [showOAuthSecret, setShowOAuthSecret] = useState(false);
   const [isLoadingOAuth, setIsLoadingOAuth] = useState(false);
   const [isTestingOAuthRedirect, setIsTestingOAuthRedirect] = useState(false);
@@ -79,98 +140,26 @@ export default function AdminSettingsPage() {
   const [homeProductsLimit, setHomeProductsLimit] = useState("10");
   const [isSavingLimit, setIsSavingLimit] = useState(false);
 
-  useEffect(() => {
-    apiClient
-      .from("settings")
-      .select("value")
-      .eq("key", "home_products_limit")
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.value) setHomeProductsLimit(data.value);
-      });
-  }, []);
-
-  const handleSaveHomeLimit = async () => {
-    setIsSavingLimit(true);
-    try {
-      const { data: existing } = await apiClient
-        .from("settings")
-        .select("id")
-        .eq("key", "home_products_limit")
-        .maybeSingle();
-
-      const { error } = existing
-        ? await apiClient
-            .from("settings")
-            .update({ value: homeProductsLimit })
-            .eq("key", "home_products_limit")
-        : await apiClient
-            .from("settings")
-            .insert({ key: "home_products_limit", value: homeProductsLimit, store_id: 1 });
-
-      if (error) throw error;
-      toast.success("Jumlah produk beranda berhasil disimpan");
-    } catch {
-      toast.error("Gagal menyimpan jumlah produk beranda");
-    } finally {
-      setIsSavingLimit(false);
-    }
-  };
-
-  useEffect(() => {
-    setDraft(appearance);
-  }, [appearance]);
-
-  const previewDraft = (next: Appearance) => {
-    setDraft(next);
-    applyAppearance(next);
-  };
-
-  const saveAppearance = async () => {
-    setIsSavingAppearance(true);
-    try {
-      const rows: { key: string; value: string }[] = [
-        { key: SETTING_KEYS.font, value: draft.font },
-        { key: SETTING_KEYS.textSize, value: draft.textSize },
-        { key: SETTING_KEYS.theme, value: draft.theme },
-      ];
-
-      for (const row of rows) {
-        const { data: existing } = await apiClient
-          .from("settings")
-          .select("id")
-          .eq("key", row.key)
-          .maybeSingle();
-
-        const { error } = existing
-          ? await apiClient.from("settings").update({ value: row.value }).eq("key", row.key)
-          : await apiClient.from("settings").insert(row);
-        if (error) throw error;
-      }
-
-      setAppearance(draft);
-      cacheAppearance(draft);
-      toast.success("Tampilan berhasil disimpan");
-      refetchAppearance();
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Gagal menyimpan tampilan";
-      toast.error(msg);
-    } finally {
-      setIsSavingAppearance(false);
-    }
-  };
-
-  const resetAppearance = () => {
-    previewDraft(DEFAULT_APPEARANCE);
-    toast.info("Tampilan direset ke default (belum disimpan)");
-  };
-
+  // Forms
+  const storeForm = useForm<StoreFormValues>({
+    resolver: zodResolver(storeSchema),
+    defaultValues: {
+      storeName: "Sarah Bakery",
+      storeTagline: "Bakery homemade terbaik dibuat dengan cinta",
+      storeAddress: "Jl. Melati No. 45, Jakarta Selatan",
+      storeHours: "Senin - Minggu: 08.00 - 21.00 WIB",
+      storeEmail: "halo@sarahbakery.web.id",
+      storeBankInfo: "BCA 8735029182 a.n Sarah Bakery / Mandiri 123000998877",
+    },
+  });
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       name: "",
       email: "",
+      phone: "",
+      address: "",
     },
   });
 
@@ -187,6 +176,15 @@ export default function AdminSettingsPage() {
     resolver: zodResolver(whatsappSchema),
     defaultValues: {
       whatsappNumber: "",
+      whatsappGreeting: "Halo Admin Sarah Bakery, saya ingin konfirmasi pesanan",
+    },
+  });
+
+  const chatbotForm = useForm<ChatbotFormValues>({
+    resolver: zodResolver(chatbotSchema),
+    defaultValues: {
+      chatbotName: "Sarah Assistant",
+      chatbotWelcome: "Halo! Ada yang bisa Sarah bantu seputar menu roti & kue lezat kami hari ini? 🥐✨",
     },
   });
 
@@ -198,85 +196,140 @@ export default function AdminSettingsPage() {
     },
   });
 
+  // Load all initial settings
   useEffect(() => {
     const loadData = async () => {
-      // Load current user
-      const res = await apiClient.auth.getUser();
-      const user = (res?.data as any)?.user || res?.data;
-      if (user) {
-        const email = user.email || "";
-        const name = user.full_name || user.user_metadata?.name || user.name || "Admin";
-        setUserEmail(email);
-        profileForm.setValue("email", email);
-        profileForm.setValue("name", name);
-      }
+      try {
+        // 1. Load current user profile
+        const res = await apiClient.auth.getUser();
+        const user = (res?.data as any)?.user || res?.data;
+        if (user) {
+          const email = user.email || "";
+          const name = user.full_name || user.user_metadata?.name || user.name || "Admin";
+          setUserEmail(email);
+          profileForm.setValue("email", email);
+          profileForm.setValue("name", name);
+          if (user.phone) profileForm.setValue("phone", user.phone);
+          if (user.address) profileForm.setValue("address", user.address);
+        }
 
-      // Load WhatsApp number from settings
-      const { data: settings } = await apiClient
-        .from("settings")
-        .select("value")
-        .eq("key", "whatsapp_number")
-        .maybeSingle();
-
-      if (settings?.value) {
-        whatsappForm.setValue("whatsappNumber", settings.value);
-      }
-
-      const { data: chatbotSetting } = await apiClient
-        .from("settings")
-        .select("value")
-        .eq("key", "chatbot_enabled")
-        .maybeSingle();
-      if (chatbotSetting) {
-        setChatbotEnabled(chatbotSetting.value !== "false");
-      }
-
-      // Load Google OAuth settings
-      const [{ data: cidRow }, { data: secRow }] = await Promise.all([
-        apiClient
+        // 2. Load all store settings from settings table
+        const { data: allSettings } = await apiClient
           .from("settings")
-          .select("value")
-          .eq("key", "google_oauth_client_id")
-          .maybeSingle(),
-        apiClient
-          .from("settings")
-          .select("value")
-          .eq("key", "google_oauth_client_secret")
-          .maybeSingle(),
-      ]);
-      const cid = cidRow?.value ?? "";
-      const sec = secRow?.value ?? "";
-      googleOAuthForm.setValue("clientId", cid);
-      googleOAuthForm.setValue("clientSecret", sec);
-      setGoogleOAuthEnabled(!!cid && !!sec);
+          .select("key, value");
+
+        if (allSettings && Array.isArray(allSettings)) {
+          const map = new Map(allSettings.map((s: any) => [s.key, s.value]));
+
+          // Store Info
+          if (map.get("store_name")) storeForm.setValue("storeName", map.get("store_name"));
+          if (map.get("store_tagline")) storeForm.setValue("storeTagline", map.get("store_tagline"));
+          if (map.get("store_address")) storeForm.setValue("storeAddress", map.get("store_address"));
+          if (map.get("store_hours")) storeForm.setValue("storeHours", map.get("store_hours"));
+          if (map.get("store_email")) storeForm.setValue("storeEmail", map.get("store_email"));
+          if (map.get("store_bank_info")) storeForm.setValue("storeBankInfo", map.get("store_bank_info"));
+
+          // WhatsApp
+          if (map.get("whatsapp_number")) whatsappForm.setValue("whatsappNumber", map.get("whatsapp_number"));
+          if (map.get("whatsapp_greeting")) whatsappForm.setValue("whatsappGreeting", map.get("whatsapp_greeting"));
+
+          // Chatbot
+          if (map.get("chatbot_enabled")) setChatbotEnabled(map.get("chatbot_enabled") !== "false");
+          if (map.get("chatbot_name")) chatbotForm.setValue("chatbotName", map.get("chatbot_name"));
+          if (map.get("chatbot_welcome")) chatbotForm.setValue("chatbotWelcome", map.get("chatbot_welcome"));
+
+          // OAuth
+          const cid = map.get("google_oauth_client_id") || "";
+          const sec = map.get("google_oauth_client_secret") || "";
+          googleOAuthForm.setValue("clientId", cid);
+          googleOAuthForm.setValue("clientSecret", sec);
+          setGoogleOAuthEnabled(!!cid && !!sec);
+
+          // Home limit
+          if (map.get("home_products_limit")) setHomeProductsLimit(map.get("home_products_limit"));
+        }
+      } catch (err) {
+        console.error("Error loading settings:", err);
+      }
     };
 
     loadData();
-  }, [profileForm, whatsappForm, googleOAuthForm]);
+  }, [profileForm, storeForm, whatsappForm, chatbotForm, googleOAuthForm]);
 
-  const onToggleChatbot = async (enabled: boolean) => {
-    setIsLoadingChatbot(true);
-    setChatbotEnabled(enabled);
+  // Sync draft appearance when appearance changes
+  useEffect(() => {
+    setDraft(appearance);
+  }, [appearance]);
+
+  const previewDraft = (next: Appearance) => {
+    setDraft(next);
+    applyAppearance(next);
+  };
+
+  const saveAppearance = async () => {
+    setIsSavingAppearance(true);
     try {
-      const { data: existing } = await apiClient
-        .from("settings")
-        .select("id")
-        .eq("key", "chatbot_enabled")
-        .maybeSingle();
+      await upsertSetting(SETTING_KEYS.font, draft.font);
+      await upsertSetting(SETTING_KEYS.textSize, draft.textSize);
+      await upsertSetting(SETTING_KEYS.theme, draft.theme);
 
-      const value = enabled ? "true" : "false";
-      const { error } = existing
-        ? await apiClient.from("settings").update({ value }).eq("key", "chatbot_enabled")
-        : await apiClient.from("settings").insert({ key: "chatbot_enabled", value });
-
-      if (error) throw error;
-      toast.success(enabled ? "Chatbot diaktifkan" : "Chatbot disembunyikan");
+      setAppearance(draft);
+      cacheAppearance(draft);
+      toast.success("Tampilan berhasil disimpan ke seluruh aplikasi");
+      refetchAppearance();
     } catch (error: unknown) {
-      setChatbotEnabled(!enabled);
-      const msg = error instanceof Error ? error.message : "Gagal memperbarui pengaturan chatbot";
+      const msg = error instanceof Error ? error.message : "Gagal menyimpan tampilan";
       toast.error(msg);
     } finally {
-      setIsLoadingChatbot(false);
+      setIsSavingAppearance(false);
+    }
+  };
+
+  const resetAppearance = () => {
+    previewDraft(DEFAULT_APPEARANCE);
+    toast.info("Tampilan direset ke default (klik 'Simpan Tampilan' untuk menerapkan)");
+  };
+
+  const handleSaveHomeLimit = async () => {
+    setIsSavingLimit(true);
+    try {
+      const { error } = await upsertSetting("home_products_limit", homeProductsLimit);
+      if (error) throw error;
+      toast.success("Jumlah produk beranda berhasil disimpan");
+    } catch {
+      toast.error("Gagal menyimpan jumlah produk beranda");
+    } finally {
+      setIsSavingLimit(false);
+    }
+  };
+
+  // Submit Handlers
+  const onStoreSubmit = async (data: StoreFormValues) => {
+    setIsLoadingStore(true);
+    try {
+      await upsertSetting("store_name", data.storeName || "Sarah Bakery");
+      await upsertSetting("store_tagline", data.storeTagline || "");
+      await upsertSetting("store_address", data.storeAddress || "");
+      await upsertSetting("store_hours", data.storeHours || "");
+      await upsertSetting("store_email", data.storeEmail || "");
+      await upsertSetting("store_bank_info", data.storeBankInfo || "");
+
+      // Also update stores table if store_id=1 exists
+      try {
+        await apiClient.from("stores").update({
+          name: data.storeName,
+          description: data.storeTagline,
+          address: data.storeAddress,
+          email: data.storeEmail,
+        }).eq("id", 1);
+      } catch {}
+
+      toast.success("Informasi toko berhasil disimpan!");
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Gagal menyimpan informasi toko";
+      toast.error(msg);
+    } finally {
+      setIsLoadingStore(false);
     }
   };
 
@@ -286,16 +339,17 @@ export default function AdminSettingsPage() {
       const { error } = await apiClient.auth.updateUser({
         email: data.email,
         full_name: data.name,
-        data: { name: data.name },
+        phone: data.phone || null,
+        data: { name: data.name, phone: data.phone, address: data.address },
       });
 
       if (error) throw error;
 
       setUserEmail(data.email);
-      toast.success("Profil berhasil diperbarui");
+      toast.success("Profil admin berhasil diperbarui");
       
       if (data.email !== userEmail) {
-        toast.info("Email login diperbarui");
+        toast.info("Email login admin telah diperbarui");
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Gagal memperbarui profil";
@@ -308,7 +362,6 @@ export default function AdminSettingsPage() {
   const onPasswordSubmit = async (data: PasswordFormValues) => {
     setIsLoadingPassword(true);
     try {
-      // Verify current password by re-authenticating
       const { error: signInError } = await apiClient.auth.signInWithPassword({
         email: userEmail,
         password: data.currentPassword,
@@ -319,7 +372,6 @@ export default function AdminSettingsPage() {
         return;
       }
 
-      // Update password
       const { error } = await apiClient.auth.updateUser({
         password: data.newPassword,
       });
@@ -339,19 +391,14 @@ export default function AdminSettingsPage() {
   const onWhatsappSubmit = async (data: WhatsappFormValues) => {
     setIsLoadingWhatsapp(true);
     try {
-      const { data: existing } = await apiClient
-        .from("settings")
-        .select("id")
-        .eq("key", "whatsapp_number")
-        .maybeSingle();
+      const { error: err1 } = await upsertSetting("whatsapp_number", data.whatsappNumber);
+      if (err1) throw err1;
 
-      const { error } = existing
-        ? await apiClient.from("settings").update({ value: data.whatsappNumber }).eq("key", "whatsapp_number")
-        : await apiClient.from("settings").insert({ key: "whatsapp_number", value: data.whatsappNumber, store_id: 1 });
+      if (data.whatsappGreeting) {
+        await upsertSetting("whatsapp_greeting", data.whatsappGreeting);
+      }
 
-      if (error) throw error;
-
-      toast.success("Nomor WhatsApp berhasil diperbarui");
+      toast.success("Nomor WhatsApp & pengaturan pesanan berhasil disimpan");
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Gagal memperbarui nomor WhatsApp";
       toast.error(errorMessage);
@@ -360,29 +407,48 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const onToggleChatbot = async (enabled: boolean) => {
+    setIsLoadingChatbotToggle(true);
+    setChatbotEnabled(enabled);
+    try {
+      const value = enabled ? "true" : "false";
+      const { error } = await upsertSetting("chatbot_enabled", value);
+      if (error) throw error;
+      toast.success(enabled ? "Chatbot diaktifkan untuk pengunjung" : "Chatbot disembunyikan");
+    } catch (error: unknown) {
+      setChatbotEnabled(!enabled);
+      const msg = error instanceof Error ? error.message : "Gagal memperbarui status chatbot";
+      toast.error(msg);
+    } finally {
+      setIsLoadingChatbotToggle(false);
+    }
+  };
+
+  const onChatbotFormSubmit = async (data: ChatbotFormValues) => {
+    setIsLoadingChatbotForm(true);
+    try {
+      await upsertSetting("chatbot_name", data.chatbotName);
+      await upsertSetting("chatbot_welcome", data.chatbotWelcome);
+      toast.success("Pengaturan nama & sambutan Chatbot berhasil disimpan!");
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Gagal menyimpan pengaturan chatbot";
+      toast.error(msg);
+    } finally {
+      setIsLoadingChatbotForm(false);
+    }
+  };
+
   const onGoogleOAuthSubmit = async (data: GoogleOAuthFormValues) => {
     setIsLoadingOAuth(true);
     try {
-      const rows: { key: string; value: string }[] = [
-        { key: "google_oauth_client_id", value: data.clientId ?? "" },
-        { key: "google_oauth_client_secret", value: data.clientSecret ?? "" },
-      ];
-      for (const row of rows) {
-        const { data: existing } = await apiClient
-          .from("settings")
-          .select("id")
-          .eq("key", row.key)
-          .maybeSingle();
-        const { error } = existing
-          ? await apiClient.from("settings").update({ value: row.value }).eq("key", row.key)
-          : await apiClient.from("settings").insert({ ...row, store_id: 1 });
-        if (error) throw error;
-      }
+      await upsertSetting("google_oauth_client_id", data.clientId ?? "");
+      await upsertSetting("google_oauth_client_secret", data.clientSecret ?? "");
+
       const enabled = !!(data.clientId && data.clientSecret);
       setGoogleOAuthEnabled(enabled);
       toast.success(
         enabled
-          ? "Konfigurasi Google OAuth berhasil disimpan! Login Google kini aktif."
+          ? "Konfigurasi Google OAuth berhasil disimpan! Tombol Login Google kini aktif."
           : "Konfigurasi Google OAuth disimpan (nonaktif — salah satu credential kosong)."
       );
     } catch (error: unknown) {
@@ -402,92 +468,179 @@ export default function AdminSettingsPage() {
     <AdminPageLayout>
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-2 rounded-xl bg-primary/10">
-          <Settings className="w-6 h-6 text-primary" />
+        <div className="p-2.5 rounded-2xl bg-primary/10 text-primary border border-primary/20">
+          <Settings className="w-6 h-6" />
         </div>
         <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Pengaturan</h1>
-          <p className="text-muted-foreground text-sm">Kelola profil, password, dan pengaturan toko</p>
+          <h1 className="font-display text-2xl font-bold text-foreground">Pengaturan Toko & Admin</h1>
+          <p className="text-muted-foreground text-sm">Kelola profil toko, WhatsApp, Google OAuth, Chatbot, dan tampilan tema</p>
         </div>
       </div>
 
       {/* Settings Tabs */}
-      <Tabs defaultValue="profile" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="appearance" className="gap-2">
-            <Palette className="w-4 h-4" />
-            <span className="hidden sm:inline">Tampilan</span>
+      <Tabs defaultValue="store" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-7 h-auto p-1.5 bg-muted/60 rounded-2xl gap-1">
+          <TabsTrigger value="store" className="gap-1.5 py-2 rounded-xl text-xs sm:text-sm font-semibold">
+            <Store className="w-4 h-4" />
+            <span>Toko</span>
           </TabsTrigger>
-          <TabsTrigger value="profile" className="gap-2">
-            <User className="w-4 h-4" />
-            <span className="hidden sm:inline">Profil</span>
-          </TabsTrigger>
-          <TabsTrigger value="password" className="gap-2">
-            <Lock className="w-4 h-4" />
-            <span className="hidden sm:inline">Password</span>
-          </TabsTrigger>
-          <TabsTrigger value="whatsapp" className="gap-2">
+          <TabsTrigger value="whatsapp" className="gap-1.5 py-2 rounded-xl text-xs sm:text-sm font-semibold">
             <Phone className="w-4 h-4" />
-            <span className="hidden sm:inline">WhatsApp</span>
+            <span>WhatsApp</span>
           </TabsTrigger>
-          <TabsTrigger value="chatbot" className="gap-2">
+          <TabsTrigger value="appearance" className="gap-1.5 py-2 rounded-xl text-xs sm:text-sm font-semibold">
+            <Palette className="w-4 h-4" />
+            <span>Tampilan</span>
+          </TabsTrigger>
+          <TabsTrigger value="profile" className="gap-1.5 py-2 rounded-xl text-xs sm:text-sm font-semibold">
+            <User className="w-4 h-4" />
+            <span>Profil</span>
+          </TabsTrigger>
+          <TabsTrigger value="password" className="gap-1.5 py-2 rounded-xl text-xs sm:text-sm font-semibold">
+            <Lock className="w-4 h-4" />
+            <span>Password</span>
+          </TabsTrigger>
+          <TabsTrigger value="chatbot" className="gap-1.5 py-2 rounded-xl text-xs sm:text-sm font-semibold">
             <Bot className="w-4 h-4" />
-            <span className="hidden sm:inline">Chatbot</span>
+            <span>Chatbot</span>
           </TabsTrigger>
-          <TabsTrigger value="oauth" className="gap-2">
+          <TabsTrigger value="oauth" className="gap-1.5 py-2 rounded-xl text-xs sm:text-sm font-semibold">
             <Shield className="w-4 h-4" />
-            <span className="hidden sm:inline">OAuth</span>
+            <span>OAuth</span>
           </TabsTrigger>
         </TabsList>
 
-        {/* Profile Tab */}
-        <TabsContent value="profile">
-          <Card>
+        {/* 1. Tab Toko & Informasi */}
+        <TabsContent value="store">
+          <Card className="rounded-2xl shadow-soft border-border/80">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Profil Admin
+                <Store className="w-5 h-5 text-primary" />
+                Informasi & Identitas Toko
               </CardTitle>
               <CardDescription>
-                Ubah nama dan email akun admin Anda
+                Kelola nama bakery, alamat fisik, jam operasional, dan info rekening pembayaran DP
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Form {...profileForm}>
-                <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
+              <Form {...storeForm}>
+                <form onSubmit={storeForm.handleSubmit(onStoreSubmit)} className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={storeForm.control}
+                      name="storeName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold">Nama Toko / Bakery</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Sarah Bakery" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={storeForm.control}
+                      name="storeTagline"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold">Slogan / Tagline</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Freshly baked every morning with love" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={storeForm.control}
+                      name="storeHours"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold flex items-center gap-1.5">
+                            <Clock className="w-4 h-4 text-muted-foreground" />
+                            Jam Buka / Operasional
+                          </FormLabel>
+                          <FormControl>
+                            <Input placeholder="Senin - Minggu: 08.00 - 21.00 WIB" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={storeForm.control}
+                      name="storeEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold flex items-center gap-1.5">
+                            <Mail className="w-4 h-4 text-muted-foreground" />
+                            Email Kontak Toko
+                          </FormLabel>
+                          <FormControl>
+                            <Input type="email" placeholder="halo@sarahbakery.web.id" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   <FormField
-                    control={profileForm.control}
-                    name="name"
+                    control={storeForm.control}
+                    name="storeAddress"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nama</FormLabel>
+                        <FormLabel className="font-semibold flex items-center gap-1.5">
+                          <MapPin className="w-4 h-4 text-muted-foreground" />
+                          Alamat Lengkap Toko / Lokasi Pengambilan
+                        </FormLabel>
                         <FormControl>
-                          <Input placeholder="Nama lengkap" {...field} />
+                          <Textarea 
+                            placeholder="Jl. Melati No. 45, Kebayoran Baru, Jakarta Selatan" 
+                            rows={2}
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
                   <FormField
-                    control={profileForm.control}
-                    name="email"
+                    control={storeForm.control}
+                    name="storeBankInfo"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel className="font-semibold flex items-center gap-1.5">
+                          <CreditCard className="w-4 h-4 text-muted-foreground" />
+                          Info Rekening Bank / Pembayaran Transfer DP Pre-order
+                        </FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="email@example.com" {...field} />
+                          <Textarea 
+                            placeholder="BCA: 8735029182 a.n Sarah Bakery &#10;Mandiri: 123000998877 a.n Sarah Bakery &#10;QRIS: Tersedia saat konfirmasi WhatsApp" 
+                            rows={3}
+                            {...field} 
+                          />
                         </FormControl>
+                        <p className="text-xs text-muted-foreground">
+                          Instruksi ini akan ditampilkan kepada pelanggan saat memesan kue custom atau pre-order.
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" disabled={isLoadingProfile}>
-                    {isLoadingProfile ? (
+
+                  <Button type="submit" disabled={isLoadingStore} className="rounded-xl font-semibold">
+                    {isLoadingStore ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     ) : (
                       <Save className="w-4 h-4 mr-2" />
                     )}
-                    Simpan Perubahan
+                    Simpan Informasi Toko
                   </Button>
                 </form>
               </Form>
@@ -495,84 +648,16 @@ export default function AdminSettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Password Tab */}
-        <TabsContent value="password">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lock className="w-5 h-5" />
-                Ubah Password
-              </CardTitle>
-              <CardDescription>
-                Perbarui password akun admin Anda
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...passwordForm}>
-                <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
-                  <FormField
-                    control={passwordForm.control}
-                    name="currentPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password Saat Ini</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="••••••••" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={passwordForm.control}
-                    name="newPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password Baru</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="••••••••" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={passwordForm.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Konfirmasi Password Baru</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="••••••••" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" disabled={isLoadingPassword}>
-                    {isLoadingPassword ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4 mr-2" />
-                    )}
-                    Ubah Password
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* WhatsApp Tab */}
+        {/* 2. Tab WhatsApp */}
         <TabsContent value="whatsapp">
-          <Card>
+          <Card className="rounded-2xl shadow-soft border-border/80">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Phone className="w-5 h-5" />
-                Nomor WhatsApp Toko
+                <Phone className="w-5 h-5 text-primary" />
+                Nomor WhatsApp & Pengaturan Pesanan
               </CardTitle>
               <CardDescription>
-                Nomor WhatsApp yang akan digunakan untuk menerima pesanan dari pelanggan
+                Nomor WhatsApp yang akan menerima pesan otomatis saat pembeli melakukan checkout keranjang atau memesan kue custom
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -583,7 +668,7 @@ export default function AdminSettingsPage() {
                     name="whatsappNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nomor WhatsApp</FormLabel>
+                        <FormLabel className="font-semibold">Nomor WhatsApp Utama Toko</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="6281234567890" 
@@ -592,18 +677,36 @@ export default function AdminSettingsPage() {
                         </FormControl>
                         <FormMessage />
                         <p className="text-xs text-muted-foreground">
-                          Format: kode negara + nomor (contoh: 6281234567890)
+                          Wajib gunakan kode negara (contoh: <strong>6281234567890</strong>). Jangan gunakan angka 0 di depan.
                         </p>
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" disabled={isLoadingWhatsapp}>
+
+                  <FormField
+                    control={whatsappForm.control}
+                    name="whatsappGreeting"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold">Pesan Pembuka (Greeting WhatsApp)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Halo Admin Sarah Bakery, saya ingin konfirmasi pesanan" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button type="submit" disabled={isLoadingWhatsapp} className="rounded-xl font-semibold">
                     {isLoadingWhatsapp ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     ) : (
                       <Save className="w-4 h-4 mr-2" />
                     )}
-                    Simpan Nomor WhatsApp
+                    Simpan Pengaturan WhatsApp
                   </Button>
                 </form>
               </Form>
@@ -611,248 +714,10 @@ export default function AdminSettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Chatbot Tab */}
-        <TabsContent value="chatbot">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="w-5 h-5" />
-                Widget Chatbot
-              </CardTitle>
-              <CardDescription>
-                Aktifkan atau sembunyikan widget Sarah Assistant di halaman pelanggan
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between rounded-lg border border-border p-4">
-                <div className="space-y-1">
-                  <Label htmlFor="chatbot-toggle" className="text-base font-medium">
-                    Tampilkan widget chatbot
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Jika dinonaktifkan, tombol chatbot tidak akan muncul di halaman pelanggan.
-                  </p>
-                </div>
-                <Switch
-                  id="chatbot-toggle"
-                  checked={chatbotEnabled}
-                  onCheckedChange={onToggleChatbot}
-                  disabled={isLoadingChatbot}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Google OAuth Tab */}
-        <TabsContent value="oauth" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="w-5 h-5" />
-                OAuth Google
-              </CardTitle>
-              <CardDescription>
-                Konfigurasi Google OAuth agar pengguna (pelanggan & admin) bisa login dengan akun Google.
-                Setelah Client ID & Client Secret diisi, tombol "Lanjutkan dengan Google" akan aktif di halaman login.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              {/* Status badge */}
-              <div
-                className={cn(
-                  "flex items-start gap-3 rounded-xl border p-4",
-                  googleOAuthEnabled
-                    ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900"
-                    : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900"
-                )}
-              >
-                {googleOAuthEnabled ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
-                ) : (
-                  <XCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                )}
-                <div className="space-y-0.5">
-                  <p className="font-medium text-sm text-foreground">
-                    Status Login Google:{" "}
-                    <span className={cn(googleOAuthEnabled ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400")}>
-                      {googleOAuthEnabled ? "Aktif" : "Belum Aktif"}
-                    </span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {googleOAuthEnabled
-                      ? "Pengguna bisa login & register otomatis dengan akun Google."
-                      : "Isi Client ID & Client Secret dari Google Cloud Console di bawah ini untuk mengaktifkan."}
-                  </p>
-                </div>
-              </div>
-
-              {/* Redirect URI info */}
-              <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
-                <div className="flex items-center gap-2 font-medium text-sm text-foreground">
-                  <AlertCircle className="w-4 h-4 text-muted-foreground" />
-                  <span>Salin URI ini ke Authorized Redirect URIs di Google Cloud Console</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input value={redirectUri} readOnly className="font-mono text-xs bg-background" />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (redirectUri) {
-                        navigator.clipboard?.writeText(redirectUri);
-                        toast.success("Redirect URI disalin ke clipboard");
-                      }
-                    }}
-                  >
-                    Salin
-                  </Button>
-                </div>
-                <a
-                  href="https://console.cloud.google.com/apis/credentials"
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  Buka Google Cloud Console <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-
-              {/* OAuth Form */}
-              <Form {...googleOAuthForm}>
-                <form onSubmit={googleOAuthForm.handleSubmit(onGoogleOAuthSubmit)} className="space-y-4">
-                  <FormField
-                    control={googleOAuthForm.control}
-                    name="clientId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-1">
-                          <Key className="w-3.5 h-3.5" /> Google OAuth Client ID
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="xxxxxxxxxx.apps.googleusercontent.com"
-                            autoComplete="off"
-                            {...field}
-                          />
-                        </FormControl>
-                        <p className="text-xs text-muted-foreground">
-                          Di Google Cloud Console → APIs &amp; Services → Credentials → OAuth 2.0 Client IDs → Client ID.
-                        </p>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={googleOAuthForm.control}
-                    name="clientSecret"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-1">
-                          <Lock className="w-3.5 h-3.5" /> Google OAuth Client Secret
-                        </FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input
-                              type={showOAuthSecret ? "text" : "password"}
-                              placeholder="Client Secret dari Google Cloud Console"
-                              autoComplete="new-password"
-                              {...field}
-                              className="pr-10"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowOAuthSecret((v) => !v)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                            >
-                              {showOAuthSecret ? (
-                                <EyeOff className="w-4 h-4" />
-                              ) : (
-                                <Eye className="w-4 h-4" />
-                              )}
-                            </button>
-                          </div>
-                        </FormControl>
-                        <p className="text-xs text-muted-foreground">
-                          Client Secret disimpan terenkripsi di database toko. Tidak pernah dikirim ke browser.
-                        </p>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <Button type="submit" disabled={isLoadingOAuth}>
-                      {isLoadingOAuth ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Save className="w-4 h-4 mr-2" />
-                      )}
-                      Simpan Konfigurasi
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={!googleOAuthEnabled || isTestingOAuthRedirect}
-                      onClick={async () => {
-                        setIsTestingOAuthRedirect(true);
-                        try {
-                          const url =
-                            `/auth/google/login?redirect_to=${encodeURIComponent("/admin/dashboard")}&admin=1`;
-                          const w = window.open(url, "_blank", "width=600,height=700,noopener,noreferrer");
-                          if (!w) {
-                            // Fallback: popup blocked → navigate current tab
-                            window.location.href = url;
-                          }
-                        } catch (e) {
-                          toast.error("Gagal membuka halaman login Google");
-                        } finally {
-                          setTimeout(() => setIsTestingOAuthRedirect(false), 1500);
-                        }
-                      }}
-                    >
-                      {isTestingOAuthRedirect ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                      )}
-                      Test Redirect
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-
-              {/* Panduan singkat */}
-              <details className="rounded-xl border border-border p-4 group">
-                <summary className="cursor-pointer list-none flex items-center justify-between gap-2 font-medium text-sm">
-                  <span>Panduan: Cara buat Client ID & Secret di Google Cloud Console</span>
-                  <span className="text-muted-foreground text-xs">
-                    Klik untuk {googleOAuthEnabled ? "melihat ulang" : "membuka"} panduan
-                  </span>
-                </summary>
-                <ol className="list-decimal list-inside mt-4 space-y-2 text-sm text-muted-foreground">
-                  <li>Buka <a className="text-primary hover:underline" href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer noopener">Google Cloud Console → Credentials</a></li>
-                  <li>Pilih / buat Project baru (nama: Sarah Bakery).</li>
-                  <li>Klik <strong>"Create Credentials"</strong> → pilih <strong>"OAuth client ID"</strong>.</li>
-                  <li>Jika diminta <strong>OAuth consent screen</strong>: pilih <em>External</em> → isi App name=Sarah Bakery, Support email=email Anda, App domain={typeof window !== "undefined" ? window.location.host : "(domain toko)"}. Authorized domains tambahkan domain public (jika production). Save.</li>
-                  <li>Kembali ke Credentials → Create OAuth client ID → pilih <strong>Application type: Web application</strong>.</li>
-                  <li>Name: Sarah Bakery Web App.</li>
-                  <li>
-                    Di bagian <strong>Authorized redirect URIs</strong> → klik <em>ADD URI</em> → paste: <code className="font-mono text-xs bg-muted px-1 rounded">{redirectUri}</code>
-                  </li>
-                  <li>Klik <strong>Create</strong> → akan muncul popup dengan Client ID & Client Secret. Salin & paste kedua nilai ke form di atas → Simpan Konfigurasi.</li>
-                  <li>Status di atas otomatis berubah menjadi <span className="text-emerald-700 dark:text-emerald-400 font-medium">Aktif</span> ✅. Selesai.</li>
-                </ol>
-              </details>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Appearance Tab */}
+        {/* 3. Tab Tampilan */}
         <TabsContent value="appearance" className="space-y-4">
           {/* Homepage Product Limit */}
-          <Card>
+          <Card className="rounded-2xl shadow-soft border-border/80">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <LayoutGrid className="w-5 h-5 text-primary" />
@@ -879,7 +744,7 @@ export default function AdminSettingsPage() {
                   <option value="20">20 Produk</option>
                   <option value="all">Tampilkan Semua Produk</option>
                 </select>
-                <Button onClick={handleSaveHomeLimit} disabled={isSavingLimit} size="sm" className="font-semibold">
+                <Button onClick={handleSaveHomeLimit} disabled={isSavingLimit} size="sm" className="font-semibold rounded-xl">
                   {isSavingLimit ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
                   Simpan Jumlah
                 </Button>
@@ -891,14 +756,14 @@ export default function AdminSettingsPage() {
           </Card>
 
           {/* Fonts */}
-          <Card>
+          <Card className="rounded-2xl shadow-soft border-border/80">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Palette className="w-5 h-5" />
-                Preset Font
+                <Palette className="w-5 h-5 text-primary" />
+                Preset Font Google
               </CardTitle>
               <CardDescription>
-                Pilih salah satu dari 10 kombinasi Google Font. Perubahan langsung terlihat sebagai pratinjau.
+                Pilih salah satu kombinasi font Google. Pratinjau langsung terlihat di bawah.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -940,7 +805,7 @@ export default function AdminSettingsPage() {
           </Card>
 
           {/* Text size */}
-          <Card>
+          <Card className="rounded-2xl shadow-soft border-border/80">
             <CardHeader>
               <CardTitle>Ukuran Teks Global</CardTitle>
               <CardDescription>
@@ -977,11 +842,11 @@ export default function AdminSettingsPage() {
           </Card>
 
           {/* Theme colors */}
-          <Card>
+          <Card className="rounded-2xl shadow-soft border-border/80">
             <CardHeader>
-              <CardTitle>Preset Warna Tema</CardTitle>
+              <CardTitle>Preset Warna Tema Toko</CardTitle>
               <CardDescription>
-                Warna diterapkan ke seluruh komponen melalui token desain (primary, accent, background).
+                Warna tema diterapkan ke seluruh tombol, badge, dan kartu produk.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1018,29 +883,29 @@ export default function AdminSettingsPage() {
           </Card>
 
           {/* Live preview + actions */}
-          <Card>
+          <Card className="rounded-2xl shadow-soft border-border/80">
             <CardHeader>
-              <CardTitle>Pratinjau</CardTitle>
+              <CardTitle>Pratinjau Langsung & Simpan</CardTitle>
               <CardDescription>
                 Font: {getFontPreset(draft.font).label} · Ukuran: {draft.textSize} · Tema: {draft.theme}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-                <h3 className="font-display text-2xl font-bold text-foreground">Bolu Panggang Premium</h3>
+                <h3 className="font-display text-2xl font-bold text-foreground">Bolu Panggang Spesial</h3>
                 <p className="text-sm text-muted-foreground">
-                  Tekstur lembut dengan rasa murni, dibuat segar setiap hari oleh Sarah Bakery.
+                  Tekstur lembut dengan cita rasa khas homemade oleh Sarah Bakery.
                 </p>
                 <div className="flex gap-2">
-                  <Button size="sm">Tambah ke Keranjang</Button>
-                  <Button size="sm" variant="secondary">Detail</Button>
-                  <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
+                  <Button size="sm" className="rounded-xl">Tambah ke Keranjang</Button>
+                  <Button size="sm" variant="secondary" className="rounded-xl">Detail</Button>
+                  <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl">
                     Promo
                   </Button>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button onClick={saveAppearance} disabled={isSavingAppearance}>
+                <Button onClick={saveAppearance} disabled={isSavingAppearance} className="rounded-xl font-semibold">
                   {isSavingAppearance ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   ) : (
@@ -1048,13 +913,447 @@ export default function AdminSettingsPage() {
                   )}
                   Simpan Tampilan
                 </Button>
-                <Button variant="outline" onClick={resetAppearance} disabled={isSavingAppearance}>
+                <Button variant="outline" onClick={resetAppearance} disabled={isSavingAppearance} className="rounded-xl">
                   Reset ke Default
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Perubahan berlaku untuk semua pengunjung setelah disimpan.
-              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 4. Tab Profil Admin */}
+        <TabsContent value="profile">
+          <Card className="rounded-2xl shadow-soft border-border/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="w-5 h-5 text-primary" />
+                Profil Akun Admin
+              </CardTitle>
+              <CardDescription>
+                Ubah identitas, nomor telepon, dan email login administrator
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...profileForm}>
+                <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={profileForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold">Nama Lengkap</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Nama admin" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={profileForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold">Email Login Admin</FormLabel>
+                          <FormControl>
+                            <Input type="email" placeholder="admin@sarahbakery.web.id" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={profileForm.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold">Nomor Telepon / HP</FormLabel>
+                          <FormControl>
+                            <Input placeholder="081234567890" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={profileForm.control}
+                      name="address"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold">Alamat</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Kota / Domisili" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <Button type="submit" disabled={isLoadingProfile} className="rounded-xl font-semibold">
+                    {isLoadingProfile ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Simpan Profil Admin
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 5. Tab Password */}
+        <TabsContent value="password">
+          <Card className="rounded-2xl shadow-soft border-border/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="w-5 h-5 text-primary" />
+                Ubah Password Akun Admin
+              </CardTitle>
+              <CardDescription>
+                Pastikan Anda menggunakan password yang kuat dan aman
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...passwordForm}>
+                <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4 max-w-md">
+                  <FormField
+                    control={passwordForm.control}
+                    name="currentPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold">Password Saat Ini</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="••••••••" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={passwordForm.control}
+                    name="newPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold">Password Baru</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="••••••••" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={passwordForm.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold">Konfirmasi Password Baru</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="••••••••" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" disabled={isLoadingPassword} className="rounded-xl font-semibold">
+                    {isLoadingPassword ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Perbarui Password
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 6. Tab Chatbot */}
+        <TabsContent value="chatbot" className="space-y-4">
+          <Card className="rounded-2xl shadow-soft border-border/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bot className="w-5 h-5 text-primary" />
+                Status Widget Chatbot AI
+              </CardTitle>
+              <CardDescription>
+                Aktifkan atau sembunyikan widget chatbot asisten di halaman pengunjung
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between rounded-xl border border-border p-4 bg-muted/20">
+                <div className="space-y-1">
+                  <Label htmlFor="chatbot-toggle" className="text-base font-semibold">
+                    Tampilkan Widget Chatbot
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {chatbotEnabled 
+                      ? "Widget Sarah Assistant aktif dan muncul di pojok bawah seluruh halaman pembeli."
+                      : "Widget chatbot disembunyikan dari halaman pembeli."}
+                  </p>
+                </div>
+                <Switch
+                  id="chatbot-toggle"
+                  checked={chatbotEnabled}
+                  onCheckedChange={onToggleChatbot}
+                  disabled={isLoadingChatbotToggle}
+                />
+              </div>
+
+              {/* Chatbot Name & Welcome Message Form */}
+              <Form {...chatbotForm}>
+                <form onSubmit={chatbotForm.handleSubmit(onChatbotFormSubmit)} className="space-y-4 pt-2">
+                  <FormField
+                    control={chatbotForm.control}
+                    name="chatbotName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold">Nama Asisten Bot</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Sarah Assistant" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={chatbotForm.control}
+                    name="chatbotWelcome"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold">Pesan Sambutan Awal Chatbot</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Halo! Ada yang bisa Sarah bantu hari ini? 🥐✨" 
+                            rows={3}
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button type="submit" disabled={isLoadingChatbotForm} className="rounded-xl font-semibold">
+                    {isLoadingChatbotForm ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Simpan Konfigurasi Chatbot
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 7. Tab Google OAuth */}
+        <TabsContent value="oauth" className="space-y-4">
+          <Card className="rounded-2xl shadow-soft border-border/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-primary" />
+                OAuth Google Login
+              </CardTitle>
+              <CardDescription>
+                Konfigurasi Google OAuth agar pelanggan dan admin dapat login cepat dengan 1-klik menggunakan akun Google.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* Status badge */}
+              <div
+                className={cn(
+                  "flex items-start gap-3 rounded-2xl border p-4",
+                  googleOAuthEnabled
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-950 dark:text-emerald-200"
+                    : "bg-amber-500/10 border-amber-500/30 text-amber-950 dark:text-amber-200"
+                )}
+              >
+                {googleOAuthEnabled ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                )}
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-sm">
+                    Status Login Google:{" "}
+                    <span className={cn(googleOAuthEnabled ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-amber-600 dark:text-amber-400 font-bold")}>
+                      {googleOAuthEnabled ? "Aktif & Siap Digunakan" : "Belum Aktif"}
+                    </span>
+                  </p>
+                  <p className="text-xs opacity-80">
+                    {googleOAuthEnabled
+                      ? "Pengunjung & Admin dapat langsung login otomatis menggunakan tombol 'Masuk dengan Google'."
+                      : "Isi Client ID & Client Secret dari Google Cloud Console di bawah ini untuk mengaktifkan."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Redirect URI info */}
+              <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-2">
+                <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
+                  <AlertCircle className="w-4 h-4 text-primary" />
+                  <span>Authorized Redirect URI (Salin ke Google Cloud Console)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input value={redirectUri} readOnly className="font-mono text-xs bg-background rounded-xl" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl shrink-0 font-semibold"
+                    onClick={() => {
+                      if (redirectUri) {
+                        navigator.clipboard?.writeText(redirectUri);
+                        toast.success("Redirect URI berhasil disalin ke clipboard");
+                      }
+                    }}
+                  >
+                    Salin URI
+                  </Button>
+                </div>
+                <a
+                  href="https://console.cloud.google.com/apis/credentials"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline pt-1"
+                >
+                  Buka Google Cloud Console <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+
+              {/* OAuth Form */}
+              <Form {...googleOAuthForm}>
+                <form onSubmit={googleOAuthForm.handleSubmit(onGoogleOAuthSubmit)} className="space-y-4">
+                  <FormField
+                    control={googleOAuthForm.control}
+                    name="clientId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1 font-semibold">
+                          <Key className="w-3.5 h-3.5 text-primary" /> Google OAuth Client ID
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="xxxxxxxxxx.apps.googleusercontent.com"
+                            autoComplete="off"
+                            {...field}
+                          />
+                        </FormControl>
+                        <p className="text-xs text-muted-foreground">
+                          Di Google Cloud Console → APIs &amp; Services → Credentials → OAuth 2.0 Client IDs → Client ID.
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={googleOAuthForm.control}
+                    name="clientSecret"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1 font-semibold">
+                          <Lock className="w-3.5 h-3.5 text-primary" /> Google OAuth Client Secret
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              type={showOAuthSecret ? "text" : "password"}
+                              placeholder="Client Secret dari Google Cloud Console"
+                              autoComplete="new-password"
+                              {...field}
+                              className="pr-10"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowOAuthSecret((v) => !v)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              {showOAuthSecret ? (
+                                <EyeOff className="w-4 h-4" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <p className="text-xs text-muted-foreground">
+                          Client Secret disimpan aman di database toko.
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button type="submit" disabled={isLoadingOAuth} className="rounded-xl font-semibold">
+                      {isLoadingOAuth ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-2" />
+                      )}
+                      Simpan Konfigurasi OAuth
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!googleOAuthEnabled || isTestingOAuthRedirect}
+                      className="rounded-xl font-semibold"
+                      onClick={async () => {
+                        setIsTestingOAuthRedirect(true);
+                        try {
+                          const url =
+                            `/auth/google/login?redirect_to=${encodeURIComponent("/admin/dashboard")}&admin=1`;
+                          const w = window.open(url, "_blank", "width=600,height=700,noopener,noreferrer");
+                          if (!w) {
+                            window.location.href = url;
+                          }
+                        } catch (e) {
+                          toast.error("Gagal membuka halaman login Google");
+                        } finally {
+                          setTimeout(() => setIsTestingOAuthRedirect(false), 1500);
+                        }
+                      }}
+                    >
+                      {isTestingOAuthRedirect ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                      )}
+                      Test Redirect Login
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+
+              {/* Panduan singkat */}
+              <details className="rounded-2xl border border-border p-4 group bg-muted/10">
+                <summary className="cursor-pointer list-none flex items-center justify-between gap-2 font-semibold text-sm">
+                  <span>Panduan: Cara buat Client ID & Secret di Google Cloud Console</span>
+                  <span className="text-muted-foreground text-xs font-normal">
+                    Klik untuk {googleOAuthEnabled ? "melihat ulang" : "membuka"} panduan
+                  </span>
+                </summary>
+                <ol className="list-decimal list-inside mt-4 space-y-2 text-sm text-muted-foreground">
+                  <li>Buka <a className="text-primary hover:underline font-semibold" href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer noopener">Google Cloud Console → Credentials</a></li>
+                  <li>Pilih atau buat Project baru (nama: Sarah Bakery).</li>
+                  <li>Klik <strong>"Create Credentials"</strong> → pilih <strong>"OAuth client ID"</strong>.</li>
+                  <li>Jika diminta <strong>OAuth consent screen</strong>: pilih <em>External</em> → isi App name=Sarah Bakery, Support email=email Anda, App domain={typeof window !== "undefined" ? window.location.host : "(domain toko)"}. Save.</li>
+                  <li>Kembali ke Credentials → Create OAuth client ID → pilih <strong>Application type: Web application</strong>.</li>
+                  <li>Di bagian <strong>Authorized redirect URIs</strong> → klik <em>ADD URI</em> → tempel: <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{redirectUri}</code></li>
+                  <li>Klik <strong>Create</strong> → salin Client ID & Client Secret ke form di atas → Simpan. Selesai!</li>
+                </ol>
+              </details>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1062,6 +1361,3 @@ export default function AdminSettingsPage() {
     </AdminPageLayout>
   );
 }
-
-
-
