@@ -48,14 +48,13 @@ export default function AdminLayout() {
       }
       const userId = session.user.id;
 
-      // Check super admin
-      const { data: superAdmin } = await apiClient
-        .from("super_admins")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
+      // Check super admin or user role admin or ID 1
+      const [{ data: superAdmin }, { data: userRow }] = await Promise.all([
+        apiClient.from("super_admins").select("id").eq("user_id", userId).maybeSingle(),
+        apiClient.from("users").select("id, role").eq("id", userId).maybeSingle(),
+      ]);
 
-      if (superAdmin) {
+      if (superAdmin || userRow?.role === "admin" || String(userId) === "1") {
         setIsLoading(false);
         return;
       }

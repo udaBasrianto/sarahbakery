@@ -358,11 +358,9 @@ INT_COLUMNS = {
     "shelf_life_days", "quantity"
 }
 
-def _coerce_val_for_db(key: str, val: Any) -> Any:
+def _coerce_filter_val(key: str, val: Any) -> Any:
     if val is None or val == "":
         return None
-    if isinstance(val, (dict, list)):
-        return json.dumps(val)
     if isinstance(val, str):
         val_str = val.strip()
         if not val_str or val_str.lower() in ("null", "undefined", "none"):
@@ -375,7 +373,15 @@ def _coerce_val_for_db(key: str, val: Any) -> Any:
                     return None
     return val
 
-_coerce_int_if_needed = _coerce_val_for_db
+def _coerce_insert_val(key: str, val: Any) -> Any:
+    if val is None or val == "":
+        return None
+    if isinstance(val, (dict, list)):
+        return json.dumps(val)
+    return _coerce_filter_val(key, val)
+
+_coerce_val_for_db = _coerce_insert_val
+_coerce_int_if_needed = _coerce_filter_val
 
 
 def parse_select_with_relations(base_table: str, select: str):
@@ -485,7 +491,7 @@ async def query_endpoint(request: QueryRequest):
             nonlocal arg_idx, args
             arg_idx += 1
             if col_for_int is not None:
-                val = _coerce_int_if_needed(col_for_int, val)
+                val = _coerce_filter_val(col_for_int, val)
             args.append(val)
             return arg_idx
 
@@ -503,8 +509,12 @@ async def query_endpoint(request: QueryRequest):
                 i = next_arg(val, None)
                 conditions.append(f"{field_safe} ILIKE ${i}")
             elif fop == "in":
-                i = next_arg(val, bare_field)
-                conditions.append(f"{field_safe} = ANY(${i})")
+                if not isinstance(val, (list, tuple)):
+                    val = [val] if val is not None else []
+                val = [_coerce_filter_val(bare_field, x) if bare_field else x for x in val]
+                arg_idx += 1
+                args.append(val)
+                conditions.append(f"{field_safe} = ANY(${arg_idx})")
             elif fop == "neq":
                 i = next_arg(val, bare_field)
                 conditions.append(f"{field_safe} <> ${i}")
