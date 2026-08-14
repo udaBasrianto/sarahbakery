@@ -138,44 +138,66 @@ export default function HomePage() {
       {/* Hero Slider */}
       <HeroSlider />
 
-      {/* Quick Discovery CTA Banners */}
-      <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-3 grid gap-3 sm:grid-cols-2">
-        <Link
-          to="/custom-order"
-          className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/10 via-amber-500/10 to-primary/5 border border-primary/20 rounded-3xl hover:border-primary/40 hover:shadow-soft transition-all group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg group-hover:scale-105 transition-transform shadow-xs">
+      {/* Horizontal Scrollable Discovery Row under Slider */}
+      <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-3">
+        <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-1">
+          <Link
+            to="/custom-order"
+            className="flex items-center gap-2.5 px-3.5 py-2 bg-gradient-to-r from-primary/10 via-amber-500/10 to-primary/5 border border-primary/20 rounded-2xl hover:border-primary/40 transition-all shrink-0 group shadow-xs"
+          >
+            <span className="w-7 h-7 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shadow-xs">
               ✨
+            </span>
+            <div className="text-left">
+              <p className="font-bold text-xs text-foreground leading-tight">Custom Cake &amp; PO</p>
+              <p className="text-[10px] text-muted-foreground">Tema bebas • DP 50%</p>
             </div>
-            <div>
-              <p className="font-semibold text-sm text-foreground">Pesanan Custom &amp; PO Khusus</p>
-              <p className="text-xs text-muted-foreground">Tema bebas • DP 50% • Jadwal fleksibel</p>
-            </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-primary flex-shrink-0 group-hover:translate-x-1 transition-transform" />
-        </Link>
+          </Link>
 
-        <Link
-          to="/community"
-          className="flex items-center justify-between p-4 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-primary/10 border border-amber-500/30 rounded-3xl hover:border-amber-500/50 hover:shadow-soft transition-all group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold text-lg group-hover:scale-105 transition-transform shadow-xs">
+          <Link
+            to="/community"
+            className="flex items-center gap-2.5 px-3.5 py-2 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-primary/10 border border-amber-500/30 rounded-2xl hover:border-amber-500/50 transition-all shrink-0 group shadow-xs"
+          >
+            <span className="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xs font-bold shadow-xs">
               👩‍🍳
-            </div>
-            <div>
-              <p className="font-semibold text-sm text-foreground flex items-center gap-1.5">
-                <span>Komunitas Resep Baking</span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
+            </span>
+            <div className="text-left">
+              <div className="flex items-center gap-1">
+                <p className="font-bold text-xs text-foreground leading-tight">Komunitas Resep</p>
+                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
                   Baru
                 </span>
-              </p>
-              <p className="text-xs text-muted-foreground">Berbagi resep • Tips baking • Recook</p>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Baking • Tips • Recook</p>
             </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 group-hover:translate-x-1 transition-transform" />
-        </Link>
+          </Link>
+
+          <Link
+            to="/blog"
+            className="flex items-center gap-2.5 px-3.5 py-2 bg-card border border-border/80 rounded-2xl hover:border-primary/40 transition-all shrink-0 group shadow-xs"
+          >
+            <span className="w-7 h-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+              📖
+            </span>
+            <div className="text-left">
+              <p className="font-bold text-xs text-foreground leading-tight">Artikel &amp; Blog</p>
+              <p className="text-[10px] text-muted-foreground">Tips resep bolu</p>
+            </div>
+          </Link>
+
+          <Link
+            to="/affiliate"
+            className="flex items-center gap-2.5 px-3.5 py-2 bg-card border border-border/80 rounded-2xl hover:border-primary/40 transition-all shrink-0 group shadow-xs"
+          >
+            <span className="w-7 h-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+              🎁
+            </span>
+            <div className="text-left">
+              <p className="font-bold text-xs text-foreground leading-tight">Affiliate</p>
+              <p className="text-[10px] text-muted-foreground">Komisi referral</p>
+            </div>
+          </Link>
+        </div>
       </section>
 
       {/* Categories */}

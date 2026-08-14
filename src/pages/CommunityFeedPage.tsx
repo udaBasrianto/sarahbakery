@@ -21,7 +21,9 @@ import {
   Award, 
   SlidersHorizontal,
   ChevronRight,
-  Loader2
+  Loader2,
+  LayoutGrid,
+  List
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -68,6 +70,16 @@ export default function CommunityFeedPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
   const [likedIds, setLikedIds] = useState<number[]>([]);
+
+  // View mode state: "grid" (2 kolom) | "list" (baris list)
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+    return (localStorage.getItem("sarahbakery_community_view_mode") as "grid" | "list") || "grid";
+  });
+
+  const handleViewChange = (mode: "grid" | "list") => {
+    setViewMode(mode);
+    localStorage.setItem("sarahbakery_community_view_mode", mode);
+  };
 
   // Check auth
   useEffect(() => {
@@ -308,8 +320,48 @@ export default function CommunityFeedPage() {
         </div>
       </section>
 
-      {/* Recipe Cards Feed */}
+      {/* Recipe Cards Feed Header & Switcher */}
       <section className="px-4 pt-4 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="font-display text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              Resep Komunitas ({filteredRecipes.length})
+            </h2>
+          </div>
+
+          {/* 2 Kolom Grid vs List Switcher */}
+          <div className="flex items-center gap-1 bg-secondary/80 p-1 rounded-full border border-border/70 shadow-inner">
+            <button
+              type="button"
+              onClick={() => handleViewChange("grid")}
+              className={cn(
+                "w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300",
+                viewMode === "grid"
+                  ? "bg-card text-primary shadow-md scale-105 border border-border/40 font-bold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Tampilan 2 Kolom Grid"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleViewChange("list")}
+              className={cn(
+                "w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300",
+                viewMode === "list"
+                  ? "bg-card text-primary shadow-md scale-105 border border-border/40 font-bold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Tampilan Baris List"
+            >
+              <List className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-16 gap-2">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -340,7 +392,12 @@ export default function CommunityFeedPage() {
             </Button>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            className={cn(
+              viewMode === "grid" && "grid grid-cols-2 gap-3",
+              viewMode === "list" && "flex flex-col gap-3"
+            )}
+          >
             {filteredRecipes.map((recipe) => {
               const isLiked = likedIds.includes(recipe.id);
               const isBookmarked = bookmarkedIds.includes(recipe.id);
@@ -350,10 +407,20 @@ export default function CommunityFeedPage() {
                 <Link
                   key={recipe.id}
                   to={`/community/${recipe.slug}`}
-                  className="group bg-card border border-border/80 rounded-3xl overflow-hidden shadow-soft hover:shadow-xl transition-all duration-300 flex flex-col hover:border-primary/40"
+                  className={cn(
+                    "group bg-card border border-border/80 rounded-2xl overflow-hidden shadow-soft hover:shadow-xl transition-all duration-300 hover:border-primary/40",
+                    viewMode === "grid" && "flex flex-col",
+                    viewMode === "list" && "flex items-center gap-3 p-3"
+                  )}
                 >
-                  {/* Cover Image Container */}
-                  <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
+                  {/* Cover Image */}
+                  <div
+                    className={cn(
+                      "relative overflow-hidden bg-muted shrink-0",
+                      viewMode === "grid" && "aspect-[16/10] w-full",
+                      viewMode === "list" && "w-24 h-24 sm:w-28 sm:h-28 rounded-2xl"
+                    )}
+                  >
                     {recipe.cover_image ? (
                       <img
                         src={recipe.cover_image}
@@ -362,101 +429,106 @@ export default function CommunityFeedPage() {
                         loading="lazy"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-950 dark:to-orange-950 text-4xl">
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-950 dark:to-orange-950 text-3xl">
                         🧁
                       </div>
                     )}
 
                     {/* Curated by Admin Badge */}
-                    {recipe.is_curated_by_admin && (
-                      <div className="absolute top-3 left-3 bg-amber-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
+                    {recipe.is_curated_by_admin && viewMode === "grid" && (
+                      <div className="absolute top-2.5 left-2.5 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md flex items-center gap-1">
                         <Award className="w-3 h-3" />
-                        <span>Pilihan Sarah</span>
+                        <span>Pilihan</span>
                       </div>
                     )}
 
-                    {/* Quick Bookmark Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleToggleBookmark(e, recipe.id)}
-                      className={cn(
-                        "absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all",
-                        isBookmarked
-                          ? "bg-primary text-primary-foreground shadow-md scale-110"
-                          : "bg-black/30 text-white hover:bg-black/50"
-                      )}
-                      title="Simpan ke Buku Resep"
-                    >
-                      <Bookmark className={cn("w-4 h-4", isBookmarked && "fill-current")} />
-                    </button>
-
-                    {/* Duration & Difficulty Pill */}
-                    <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-white text-[11px] font-medium px-2.5 py-1 rounded-full flex items-center gap-2">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-amber-300" />
-                        {totalMinutes} mnt
-                      </span>
-                      <span>•</span>
-                      <span>{recipe.difficulty || "Mudah"}</span>
-                    </div>
+                    {/* Duration Pill in Grid Mode */}
+                    {viewMode === "grid" && (
+                      <div className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur-md text-white text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1.5">
+                        <Clock className="w-2.5 h-2.5 text-amber-300" />
+                        <span>{totalMinutes} mnt</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Body Content */}
-                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                  <div
+                    className={cn(
+                      "flex-1 flex flex-col justify-between",
+                      viewMode === "grid" && "p-3 space-y-2",
+                      viewMode === "list" && "py-0.5 space-y-1.5"
+                    )}
+                  >
                     <div>
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5">
-                        <Badge variant="outline" className="text-[10px] font-semibold">
+                      <div className="flex items-center justify-between text-[10px] sm:text-[11px] text-muted-foreground mb-1">
+                        <Badge variant="outline" className="text-[9px] sm:text-[10px] font-semibold px-1.5 py-0">
                           {recipe.category}
                         </Badge>
-                        <span>{recipe.servings || "6-8 potong"}</span>
+                        {recipe.is_curated_by_admin && viewMode === "list" && (
+                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
+                            <Award className="w-3 h-3" /> Pilihan
+                          </span>
+                        )}
                       </div>
-                      <h3 className="font-display font-bold text-base text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+
+                      <h3
+                        className={cn(
+                          "font-display font-bold text-foreground line-clamp-2 group-hover:text-primary transition-colors",
+                          viewMode === "grid" ? "text-xs sm:text-sm" : "text-sm sm:text-base"
+                        )}
+                      >
                         {recipe.title}
                       </h3>
-                      {recipe.description && (
-                        <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">
+
+                      {recipe.description && viewMode === "list" && (
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1 leading-relaxed">
                           {recipe.description}
                         </p>
                       )}
                     </div>
 
                     {/* Author & Engagement Row */}
-                    <div className="pt-3 border-t border-border/60 flex items-center justify-between">
-                      {/* Author */}
-                      <div className="flex items-center gap-2">
+                    <div className="pt-2 border-t border-border/50 flex items-center justify-between text-[11px] text-muted-foreground">
+                      <div className="flex items-center gap-1.5 truncate max-w-[100px] sm:max-w-[130px]">
                         {recipe.user_avatar ? (
                           <img
                             src={recipe.user_avatar}
                             alt={recipe.user_name || "Baker"}
-                            className="w-6 h-6 rounded-full object-cover border border-border"
+                            className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover border border-border"
                           />
                         ) : (
-                          <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                          <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold">
                             {(recipe.user_name || "U").charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <span className="text-xs font-medium text-foreground truncate max-w-[110px]">
-                          {recipe.user_name || "Anggota Baker"}
+                        <span className="text-[10px] sm:text-xs font-medium text-foreground truncate">
+                          {recipe.user_name || "Baker"}
                         </span>
                       </div>
 
-                      {/* Likes & Comments */}
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2.5 shrink-0">
                         <button
                           type="button"
                           onClick={(e) => handleToggleLike(e, recipe.id)}
                           className={cn(
-                            "flex items-center gap-1 transition-colors hover:text-rose-500",
+                            "flex items-center gap-0.5 transition-colors hover:text-rose-500",
                             isLiked && "text-rose-500 font-bold"
                           )}
                         >
-                          <Heart className={cn("w-3.5 h-3.5", isLiked && "fill-current text-rose-500")} />
+                          <Heart className={cn("w-3 h-3", isLiked && "fill-current text-rose-500")} />
                           <span>{recipe.likes_count || 0}</span>
                         </button>
-                        <div className="flex items-center gap-1">
-                          <MessageSquare className="w-3.5 h-3.5" />
-                          <span>Diskusi</span>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleBookmark(e, recipe.id)}
+                          className={cn(
+                            "hover:text-primary transition-colors",
+                            isBookmarked && "text-primary font-bold"
+                          )}
+                          title="Simpan"
+                        >
+                          <Bookmark className={cn("w-3 h-3", isBookmarked && "fill-current")} />
+                        </button>
                       </div>
                     </div>
                   </div>
