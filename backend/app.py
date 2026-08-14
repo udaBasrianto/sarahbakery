@@ -358,9 +358,11 @@ INT_COLUMNS = {
     "shelf_life_days", "quantity"
 }
 
-def _coerce_int_if_needed(key: str, val: Any) -> Any:
+def _coerce_val_for_db(key: str, val: Any) -> Any:
     if val is None or val == "":
         return None
+    if isinstance(val, (dict, list)):
+        return json.dumps(val)
     if isinstance(val, str):
         val_str = val.strip()
         if not val_str or val_str.lower() in ("null", "undefined", "none"):
@@ -372,6 +374,8 @@ def _coerce_int_if_needed(key: str, val: Any) -> Any:
                 except ValueError:
                     return None
     return val
+
+_coerce_int_if_needed = _coerce_val_for_db
 
 
 def parse_select_with_relations(base_table: str, select: str):
