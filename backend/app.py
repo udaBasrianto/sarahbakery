@@ -189,10 +189,13 @@ class ResetPasswordRequest(BaseModel):
     options: Optional[Dict[str, Any]] = None
 
 class UpdateUserRequest(BaseModel):
+    model_config = {"extra": "allow"}
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     password: Optional[str] = None
     full_name: Optional[str] = None
+    name: Optional[str] = None
+    data: Optional[Dict[str, Any]] = None
 
 async def open_pool() -> asyncpg.Pool:
     if app.state.pool is None:
@@ -799,10 +802,19 @@ async def get_user(request: Request, token: Optional[Dict[str, Any]] = Depends(v
         user_id = int(token["sub"])
     except (ValueError, TypeError, KeyError):
         return {"data": None, "error": {"message": "Invalid token"}}
-    user = await fetch_one(pool, "SELECT id, email, phone FROM users WHERE id = $1", user_id)
+    user = await fetch_one(pool, """
+        SELECT u.id, u.email, COALESCE(u.phone, p.phone) as phone, 
+               COALESCE(u.full_name, p.full_name, p.name) as full_name,
+               u.role, p.avatar_url, p.address
+        FROM users u
+        LEFT JOIN profiles p ON p.user_id = u.id
+        WHERE u.id = $1
+    """, user_id)
     if not user:
         return {"data": None, "error": {"message": "User not found"}}
-    return {"data": dict(user), "error": None}
+    user_dict = dict(user)
+    user_dict["user_metadata"] = {"name": user_dict.get("full_name") or ""}
+    return {"data": user_dict, "error": None}
 
 @app.put("/auth/user")
 async def update_user(request_data: UpdateUserRequest, request: Request, token: Optional[Dict[str, Any]] = Depends(verify_token)):
@@ -813,6 +825,11 @@ async def update_user(request_data: UpdateUserRequest, request: Request, token: 
     except (ValueError, TypeError, KeyError):
         return {"data": None, "error": {"message": "Invalid token"}}
     pool = await open_pool()
+    
+    full_name = request_data.full_name or request_data.name
+    if not full_name and request_data.data and isinstance(request_data.data, dict):
+        full_name = request_data.data.get("name") or request_data.data.get("full_name")
+        
     sets = []
     args = []
     idx = 1
@@ -828,16 +845,39 @@ async def update_user(request_data: UpdateUserRequest, request: Request, token: 
         sets.append(f"password_hash = ${idx}")
         args.append(hash_password(request_data.password))
         idx += 1
-    if request_data.full_name is not None:
+    if full_name is not None:
         sets.append(f"full_name = ${idx}")
-        args.append(request_data.full_name)
+        args.append(full_name)
         idx += 1
-    if not sets:
-        return {"data": None, "error": {"message": "No fields to update"}}
-    args.append(user_id)
-    await execute(pool, f"UPDATE users SET {', '.join(sets)} WHERE id = ${idx}", *args)
-    user = await fetch_one(pool, "SELECT id, email, phone FROM users WHERE id = $1", user_id)
-    return {"data": dict(user), "error": None}
+        
+    if sets:
+        args.append(user_id)
+        await execute(pool, f"UPDATE users SET {', '.join(sets)} WHERE id = ${idx}", *args)
+        
+    if full_name or request_data.phone:
+        try:
+            await execute(pool, """
+                INSERT INTO profiles (user_id, name, full_name, phone) 
+                VALUES ($1, $2, $2, $3)
+                ON CONFLICT (user_id) DO UPDATE 
+                SET name = COALESCE(EXCLUDED.name, profiles.name),
+                    full_name = COALESCE(EXCLUDED.full_name, profiles.full_name),
+                    phone = COALESCE(EXCLUDED.phone, profiles.phone)
+            """, user_id, full_name, request_data.phone)
+        except Exception:
+            pass
+
+    user = await fetch_one(pool, """
+        SELECT u.id, u.email, COALESCE(u.phone, p.phone) as phone, 
+               COALESCE(u.full_name, p.full_name, p.name) as full_name,
+               u.role
+        FROM users u
+        LEFT JOIN profiles p ON p.user_id = u.id
+        WHERE u.id = $1
+    """, user_id)
+    user_dict = dict(user) if user else {}
+    user_dict["user_metadata"] = {"name": user_dict.get("full_name") or ""}
+    return {"data": user_dict, "error": None}
 
 # ----------------- Admin User & Role Management -----------------
 class AdminUserCreateRequest(BaseModel):

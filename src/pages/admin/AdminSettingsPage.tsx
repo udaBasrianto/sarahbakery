@@ -201,11 +201,14 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     const loadData = async () => {
       // Load current user
-      const { data: { user } } = await apiClient.auth.getUser();
+      const res = await apiClient.auth.getUser();
+      const user = (res?.data as any)?.user || res?.data;
       if (user) {
-        setUserEmail(user.email || "");
-        profileForm.setValue("email", user.email || "");
-        profileForm.setValue("name", user.user_metadata?.name || "Admin");
+        const email = user.email || "";
+        const name = user.full_name || user.user_metadata?.name || user.name || "Admin";
+        setUserEmail(email);
+        profileForm.setValue("email", email);
+        profileForm.setValue("name", name);
       }
 
       // Load WhatsApp number from settings
@@ -215,7 +218,7 @@ export default function AdminSettingsPage() {
         .eq("key", "whatsapp_number")
         .maybeSingle();
 
-      if (settings) {
+      if (settings?.value) {
         whatsappForm.setValue("whatsappNumber", settings.value);
       }
 
@@ -282,15 +285,17 @@ export default function AdminSettingsPage() {
     try {
       const { error } = await apiClient.auth.updateUser({
         email: data.email,
+        full_name: data.name,
         data: { name: data.name },
       });
 
       if (error) throw error;
 
+      setUserEmail(data.email);
       toast.success("Profil berhasil diperbarui");
       
       if (data.email !== userEmail) {
-        toast.info("Email verifikasi telah dikirim ke email baru");
+        toast.info("Email login diperbarui");
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Gagal memperbarui profil";
@@ -334,10 +339,15 @@ export default function AdminSettingsPage() {
   const onWhatsappSubmit = async (data: WhatsappFormValues) => {
     setIsLoadingWhatsapp(true);
     try {
-      const { error } = await apiClient
+      const { data: existing } = await apiClient
         .from("settings")
-        .update({ value: data.whatsappNumber })
-        .eq("key", "whatsapp_number");
+        .select("id")
+        .eq("key", "whatsapp_number")
+        .maybeSingle();
+
+      const { error } = existing
+        ? await apiClient.from("settings").update({ value: data.whatsappNumber }).eq("key", "whatsapp_number")
+        : await apiClient.from("settings").insert({ key: "whatsapp_number", value: data.whatsappNumber, store_id: 1 });
 
       if (error) throw error;
 
