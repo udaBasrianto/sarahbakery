@@ -13,9 +13,7 @@ import {
   Heart, 
   Clock, 
   ShieldCheck, 
-  X, 
-  ChevronRight,
-  LogIn
+  X
 } from "lucide-react";
 import { useCartStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -27,18 +25,16 @@ export function BottomNav() {
   const totalItems = useCartStore((state) => state.getTotalItems());
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // Auth state listener & profile fetch
+  // Auth state listener & admin check
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await apiClient.auth.getSession();
       setIsLoggedIn(!!session);
       if (session?.user) {
-        setUserProfile(session.user);
         const { data: adminData } = await apiClient
           .from("super_admins")
           .select("id")
@@ -46,7 +42,6 @@ export function BottomNav() {
           .maybeSingle();
         setIsAdmin(!!adminData);
       } else {
-        setUserProfile(null);
         setIsAdmin(false);
       }
     };
@@ -56,9 +51,13 @@ export function BottomNav() {
     const { data: { subscription } } = apiClient.auth.onAuthStateChange((_event, session) => {
       setIsLoggedIn(!!session);
       if (session?.user) {
-        setUserProfile(session.user);
+        apiClient
+          .from("super_admins")
+          .select("id")
+          .eq("user_id", session.user.id)
+          .maybeSingle()
+          .then(({ data }) => setIsAdmin(!!data));
       } else {
-        setUserProfile(null);
         setIsAdmin(false);
       }
     });
@@ -92,22 +91,19 @@ export function BottomNav() {
     navigate(path);
   };
 
-  const menuList = [
-    { icon: Home, label: "Beranda", desc: "Halaman utama toko", path: "/" },
-    { icon: ShoppingBag, label: "Katalog Produk", desc: "Bolu, roti, cookies, pastry", path: "/products" },
-    { icon: Sparkles, label: "Pesanan Custom & PO", desc: "Kue ulang tahun & acara", path: "/custom-order" },
-    { icon: ChefHat, label: "Komunitas Resep", desc: "Berbagi resep kreasi baking", path: "/community", badge: "Baru" },
-    { icon: Newspaper, label: "Artikel & Blog", desc: "Tips & resep dapur Sarah", path: "/blog" },
-    { icon: ShoppingCart, label: "Keranjang Belanja", desc: "Cek pesanan & checkout", path: "/cart", count: totalItems },
-    { icon: Gift, label: "Program Affiliate", desc: "Dapatkan komisi referral", path: "/dashboard/affiliate" },
-    { icon: Heart, label: "Wishlist Favorit", desc: "Kue yang Anda simpan", path: "/dashboard/wishlist" },
-    { icon: Clock, label: "Riwayat Pesanan", desc: "Lacak status pesanan", path: "/dashboard/orders" },
+  // Only menus NOT present on the bottom navigation bar
+  const extraMenus = [
+    { icon: Newspaper, label: "Artikel", path: "/blog" },
+    { icon: ChefHat, label: "Komunitas", path: "/community" },
+    { icon: Gift, label: "Affiliate", path: "/dashboard/affiliate" },
+    { icon: Heart, label: "Wishlist", path: "/dashboard/wishlist" },
+    { icon: Clock, label: "Pesanan", path: "/dashboard/orders" },
     { 
       icon: User, 
-      label: isLoggedIn ? "Profil & Akun Saya" : "Masuk / Daftar", 
-      desc: isLoggedIn ? (userProfile?.email || "Kelola akun") : "Masuk untuk belanja lebih mudah", 
+      label: isLoggedIn ? "Akun" : "Masuk", 
       path: isLoggedIn ? "/dashboard" : "/auth" 
     },
+    ...(isAdmin ? [{ icon: ShieldCheck, label: "Admin", path: "/admin/dashboard" }] : []),
   ];
 
   return (
@@ -209,7 +205,7 @@ export function BottomNav() {
           {/* 5. Menu Button */}
           <button
             type="button"
-            onClick={() => setIsMenuOpen(true)}
+            onClick={() => setIsMenuOpen((prev) => !prev)}
             className={cn(
               "relative flex flex-col items-center justify-center py-1 px-2.5 rounded-full transition-all duration-300 group",
               isMenuOpen ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground"
@@ -231,116 +227,69 @@ export function BottomNav() {
         </div>
       </nav>
 
-      {/* Clean Bottom Sheet Backdrop */}
+      {/* Backdrop */}
       <div
         onClick={() => setIsMenuOpen(false)}
         className={cn(
-          "fixed inset-0 z-50 bg-black/60 backdrop-blur-xs transition-opacity duration-300",
+          "fixed inset-0 z-50 bg-black/50 backdrop-blur-xs transition-opacity duration-300",
           isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         )}
       />
 
-      {/* Clean Bottom Sheet Drawer Container */}
+      {/* Simple Icon-Only Bottom Sheet */}
       <div
         className={cn(
           "fixed inset-x-0 bottom-0 z-50 flex justify-center pointer-events-none transition-transform duration-300 ease-out",
           isMenuOpen ? "translate-y-0" : "translate-y-full"
         )}
       >
-        <div className="w-full max-w-md bg-card rounded-t-3xl border-t border-x border-border shadow-2xl px-4 pt-3 pb-8 pointer-events-auto max-h-[82vh] overflow-y-auto">
+        <div className="w-full max-w-md bg-card rounded-t-3xl border-t border-x border-border shadow-2xl px-5 pt-3 pb-6 pointer-events-auto">
           
-          {/* Drag Pill */}
-          <div className="w-12 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-3" />
+          {/* Drag Handle */}
+          <div className="w-10 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-2.5" />
 
           {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-border/80">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">🧁</span>
-              <div>
-                <h3 className="font-display font-bold text-base text-foreground leading-tight">
-                  Menu Sarah Bakery
-                </h3>
-                <p className="text-[11px] text-muted-foreground">Pilih menu layanan &amp; informasi</p>
-              </div>
-            </div>
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/70">
+            <span className="text-xs font-bold text-foreground">Menu Lainnya</span>
             <button
               type="button"
               onClick={() => setIsMenuOpen(false)}
-              className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              className="w-7 h-7 rounded-full bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          {/* Clean Menu Items List */}
-          <div className="divide-y divide-border/60 mt-1">
-            {menuList.map((item) => {
+          {/* Simple Icon Grid */}
+          <div className="grid grid-cols-3 gap-y-4 gap-x-2 py-2">
+            {extraMenus.map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.path;
+              const isActive = location.pathname.startsWith(item.path);
 
               return (
                 <button
                   key={item.path}
                   type="button"
                   onClick={() => handleNavClick(item.path)}
-                  className={cn(
-                    "w-full flex items-center justify-between py-3 px-2 rounded-2xl hover:bg-muted/40 transition-colors text-left group",
-                    isActive && "bg-primary/10 text-primary font-semibold"
-                  )}
+                  className="flex flex-col items-center justify-center gap-1.5 group text-center"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-9 h-9 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105",
-                      isActive ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
-                    )}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <p className={cn("text-xs font-bold leading-tight", isActive ? "text-primary" : "text-foreground")}>
-                          {item.label}
-                        </p>
-                        {item.badge && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
-                            {item.badge}
-                          </span>
-                        )}
-                        {item.count !== undefined && item.count > 0 && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-accent text-accent-foreground">
-                            {item.count} item
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {item.desc}
-                      </p>
-                    </div>
+                  <div className={cn(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 shadow-xs",
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-md scale-105"
+                      : "bg-secondary text-secondary-foreground group-hover:bg-primary/10 group-hover:text-primary group-hover:scale-110"
+                  )}>
+                    <Icon className="w-5 h-5" />
                   </div>
-
-                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+                  <span className={cn(
+                    "text-xs font-medium truncate max-w-[85px]",
+                    isActive ? "text-primary font-bold" : "text-foreground"
+                  )}>
+                    {item.label}
+                  </span>
                 </button>
               );
             })}
-
-            {/* Admin Dashboard shortcut if Super Admin */}
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={() => handleNavClick("/admin/dashboard")}
-                className="w-full flex items-center justify-between py-3 px-2 rounded-2xl bg-primary/10 hover:bg-primary/20 transition-colors text-left group mt-1"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center">
-                    <ShieldCheck className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-primary leading-tight">Panel Admin Toko</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Kelola produk, pesanan, artikel &amp; settings</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-primary group-hover:translate-x-0.5 transition-transform" />
-              </button>
-            )}
           </div>
 
         </div>
