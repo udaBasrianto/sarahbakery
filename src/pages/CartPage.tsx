@@ -125,7 +125,7 @@ export default function CartPage() {
       if (refCode) clearStoredReferralCode();
 
       const orderNumber = insertedOrder?.id
-        ? `#${insertedOrder.id.slice(0, 8).toUpperCase()}`
+        ? `#${String(insertedOrder.id).slice(0, 8).toUpperCase()}`
         : "";
 
       const itemsList = items
