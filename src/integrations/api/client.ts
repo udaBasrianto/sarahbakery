@@ -156,6 +156,10 @@ function createQueryBuilder(table: string) {
       data: state.body,
     });
 
+    if (response.error) {
+      console.warn(`[apiClient Error] [${state.table}]`, response.error.message);
+    }
+
     return { data: response.data, error: response.error };
   };
 
