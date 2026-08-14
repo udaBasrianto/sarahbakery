@@ -78,24 +78,33 @@ export function BottomNav() {
                 key={path}
                 to={path}
                 className={cn(
-                  "relative flex flex-col items-center justify-center py-1 px-3 rounded-full transition-all duration-300",
+                  "relative flex flex-col items-center justify-center py-1 px-3 rounded-full transition-all duration-300 group",
                   isActive
                     ? "text-primary font-bold"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <div className="relative flex items-center justify-center">
+                <div
+                  className={cn(
+                    "relative flex items-center justify-center p-1 rounded-xl transition-all duration-300",
+                    isActive && "bg-primary/10 -translate-y-1 shadow-sm"
+                  )}
+                >
                   <Icon
                     className={cn(
-                      "w-5 h-5 transition-transform duration-300",
-                      isActive && "scale-110"
+                      "w-5 h-5 transition-all duration-300 ease-out",
+                      isActive ? "scale-115 text-primary stroke-[2.5]" : "group-hover:scale-105"
                     )}
                   />
-                  {isActive && (
-                    <span className="absolute -bottom-1.5 w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  )}
                 </div>
-                <span className="text-[10px] mt-0.5 font-medium">{label}</span>
+                <span
+                  className={cn(
+                    "text-[10px] mt-0.5 transition-all duration-300 font-medium",
+                    isActive ? "font-bold text-primary scale-105" : "text-muted-foreground"
+                  )}
+                >
+                  {label}
+                </span>
               </Link>
             );
           })}
@@ -106,12 +115,12 @@ export function BottomNav() {
           <Link
             to="/custom-order"
             className={cn(
-              "w-13 h-13 w-12 h-12 rounded-full bg-gradient-to-tr from-primary via-amber-500 to-orange-400 text-primary-foreground shadow-lg shadow-primary/35 flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-300 border-2 border-card ring-2 ring-primary/20",
-              location.pathname === "/custom-order" && "ring-4 ring-primary/40 scale-105"
+              "w-12 h-12 rounded-full bg-gradient-to-tr from-primary via-amber-500 to-orange-400 text-primary-foreground shadow-lg shadow-primary/35 flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-300 border-2 border-card ring-2 ring-primary/20",
+              location.pathname === "/custom-order" && "ring-4 ring-primary/40 scale-110 -translate-y-0.5"
             )}
             title="Pesan Custom Cake"
           >
-            <Sparkles className="w-5 h-5 animate-spin-slow" />
+            <Sparkles className={cn("w-5 h-5 transition-transform duration-500", location.pathname === "/custom-order" ? "animate-spin-slow scale-110" : "")} />
           </Link>
           <span className="text-[9px] font-bold text-primary mt-0.5 tracking-tight uppercase">
             Custom
@@ -127,17 +136,22 @@ export function BottomNav() {
                 key={path}
                 to={path}
                 className={cn(
-                  "relative flex flex-col items-center justify-center py-1 px-3 rounded-full transition-all duration-300",
+                  "relative flex flex-col items-center justify-center py-1 px-3 rounded-full transition-all duration-300 group",
                   isActive
                     ? "text-primary font-bold"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <div className="relative flex items-center justify-center">
+                <div
+                  className={cn(
+                    "relative flex items-center justify-center p-1 rounded-xl transition-all duration-300",
+                    isActive && "bg-primary/10 -translate-y-1 shadow-sm"
+                  )}
+                >
                   <Icon
                     className={cn(
-                      "w-5 h-5 transition-transform duration-300",
-                      isActive && "scale-110"
+                      "w-5 h-5 transition-all duration-300 ease-out",
+                      isActive ? "scale-115 text-primary stroke-[2.5]" : "group-hover:scale-105"
                     )}
                   />
                   {isCart && totalItems > 0 && (
@@ -145,11 +159,15 @@ export function BottomNav() {
                       {totalItems > 99 ? "99+" : totalItems}
                     </span>
                   )}
-                  {isActive && !isCart && (
-                    <span className="absolute -bottom-1.5 w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  )}
                 </div>
-                <span className="text-[10px] mt-0.5 font-medium">{label}</span>
+                <span
+                  className={cn(
+                    "text-[10px] mt-0.5 transition-all duration-300 font-medium",
+                    isActive ? "font-bold text-primary scale-105" : "text-muted-foreground"
+                  )}
+                >
+                  {label}
+                </span>
               </Link>
             );
           })}
