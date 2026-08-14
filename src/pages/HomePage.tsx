@@ -25,12 +25,12 @@ export default function HomePage() {
     localStorage.setItem("sarahbakery_home_view_mode", mode);
   };
 
-  // Article view mode state: "grid" (2 kolom) | "list" (baris list)
-  const [articleViewMode, setArticleViewMode] = useState<"grid" | "list">(() => {
-    return (localStorage.getItem("sarahbakery_home_article_view") as "grid" | "list") || "grid";
+  // Article view mode state: "grid" (2 kolom), "full" (1 kolom), "list" (baris list)
+  const [articleViewMode, setArticleViewMode] = useState<ProductCardVariant>(() => {
+    return (localStorage.getItem("sarahbakery_home_article_view") as ProductCardVariant) || "grid";
   });
 
-  const handleArticleViewChange = (mode: "grid" | "list") => {
+  const handleArticleViewChange = (mode: ProductCardVariant) => {
     setArticleViewMode(mode);
     localStorage.setItem("sarahbakery_home_article_view", mode);
   };
@@ -90,6 +90,19 @@ export default function HomePage() {
     },
   });
 
+  // Fetch admin setting for homepage articles limit
+  const { data: homeArticlesLimitSetting = "4" } = useQuery({
+    queryKey: ["setting_home_articles_limit"],
+    queryFn: async () => {
+      const { data } = await apiClient
+        .from("settings")
+        .select("value")
+        .eq("key", "home_articles_limit")
+        .maybeSingle();
+      return data?.value || "4";
+    },
+  });
+
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
@@ -145,17 +158,36 @@ export default function HomePage() {
     },
   });
 
-  const { data: latestArticles = [] } = useQuery({
-    queryKey: ["home_latest_articles"],
+  const { data: latestArticles = [], isLoading: isLoadingArticles } = useQuery({
+    queryKey: ["home_latest_articles", homeArticlesLimitSetting],
     queryFn: async () => {
-      const { data, error } = await apiClient
-        .from("blog_posts")
-        .select("id, title, slug, excerpt, cover_image, published_at")
-        .eq("is_published", true)
-        .order("published_at", { ascending: false })
-        .limit(3);
-      if (error) return [];
-      return data || [];
+      try {
+        let query = apiClient
+          .from("blog_posts")
+          .select("id, title, slug, excerpt, cover_image, published_at, is_published")
+          .order("published_at", { ascending: false });
+
+        if (homeArticlesLimitSetting && homeArticlesLimitSetting !== "all") {
+          const limitNum = parseInt(homeArticlesLimitSetting, 10);
+          if (!isNaN(limitNum) && limitNum > 0) {
+            query = query.limit(limitNum);
+          } else {
+            query = query.limit(4);
+          }
+        } else {
+          query = query.limit(10);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+          console.error("Error fetching articles:", error);
+          return [];
+        }
+        return (data || []).filter((a: any) => a.is_published !== false);
+      } catch (err) {
+        console.error("Error in home_latest_articles:", err);
+        return [];
+      }
     },
   });
 
@@ -369,68 +401,98 @@ export default function HomePage() {
       </section>
 
       {/* Latest Articles Section */}
-      {latestArticles.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4 mb-16">
-          <div className="flex items-center justify-between mb-4 gap-2">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-xl bg-primary/10 text-primary">
-                <Newspaper className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="font-display text-lg lg:text-xl font-bold text-foreground">
-                  Artikel &amp; Resep Terbaru
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  Tips memanggang &amp; resep kue lezat dapur Sarah
-                </p>
-              </div>
+      <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4 mb-16">
+        <div className="flex items-center justify-between mb-4 gap-2">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-xl bg-primary/10 text-primary">
+              <Newspaper className="w-5 h-5" />
             </div>
-
-            <div className="flex items-center gap-2">
-              {/* 2 Kolom Grid vs List Switcher */}
-              <div className="flex items-center gap-1 bg-secondary/80 p-1 rounded-full border border-border/70 shadow-inner">
-                <button
-                  type="button"
-                  onClick={() => handleArticleViewChange("grid")}
-                  className={cn(
-                    "w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300",
-                    articleViewMode === "grid"
-                      ? "bg-card text-primary shadow-md scale-105 border border-border/40 font-bold"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                  title="Tampilan 2 Kolom Grid"
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleArticleViewChange("list")}
-                  className={cn(
-                    "w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300",
-                    articleViewMode === "list"
-                      ? "bg-card text-primary shadow-md scale-105 border border-border/40 font-bold"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                  title="Tampilan Baris List"
-                >
-                  <List className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              <Link
-                to="/blog"
-                className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5 shrink-0 pl-1"
-              >
-                Lihat Semua <ChevronRight className="w-4 h-4" />
-              </Link>
+            <div>
+              <h2 className="font-display text-lg lg:text-xl font-bold text-foreground">
+                Artikel &amp; Resep Terbaru
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Tips memanggang &amp; resep kue lezat dapur Sarah
+              </p>
             </div>
           </div>
 
-          {/* Articles Container: 2 Kolom Grid atau List Row */}
+          <div className="flex items-center gap-2">
+            {/* 3-way View Switcher: Grid (2 kolom), Full (1 kolom), List (baris) */}
+            <div className="flex items-center gap-1 bg-secondary/80 p-1 rounded-full border border-border/70 shadow-inner">
+              <button
+                type="button"
+                onClick={() => handleArticleViewChange("grid")}
+                className={cn(
+                  "w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300",
+                  articleViewMode === "grid"
+                    ? "bg-card text-primary shadow-md scale-105 border border-border/40 font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title="Tampilan 2 Kolom Grid"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleArticleViewChange("full")}
+                className={cn(
+                  "w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300",
+                  articleViewMode === "full"
+                    ? "bg-card text-primary shadow-md scale-105 border border-border/40 font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title="Tampilan 1 Kolom Penuh"
+              >
+                <Columns2 className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleArticleViewChange("list")}
+                className={cn(
+                  "w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300",
+                  articleViewMode === "list"
+                    ? "bg-card text-primary shadow-md scale-105 border border-border/40 font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title="Tampilan Baris List"
+              >
+                <List className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <Link
+              to="/blog"
+              className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5 shrink-0 pl-1"
+            >
+              Lihat Semua <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Content */}
+        {isLoadingArticles ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : latestArticles.length === 0 ? (
+          <div className="text-center py-10 bg-card rounded-3xl border border-border/80 p-6 space-y-2">
+            <p className="text-3xl">📖</p>
+            <p className="font-bold text-sm text-foreground">Artikel &amp; Resep Segera Hadir</p>
+            <p className="text-xs text-muted-foreground">Kunjungi halaman blog untuk melihat artikel &amp; panduan resep.</p>
+            <Link to="/blog">
+              <span className="inline-flex items-center text-xs font-bold text-primary hover:underline mt-1">
+                Buka Halaman Blog &amp; Artikel →
+              </span>
+            </Link>
+          </div>
+        ) : (
           <div
             className={cn(
               articleViewMode === "grid" && "grid grid-cols-2 gap-3",
+              articleViewMode === "full" && "grid grid-cols-1 gap-4",
               articleViewMode === "list" && "flex flex-col gap-3"
             )}
           >
@@ -441,15 +503,17 @@ export default function HomePage() {
                 className={cn(
                   "group bg-card border border-border/80 rounded-2xl overflow-hidden shadow-soft hover:shadow-md hover:border-primary/40 transition-all",
                   articleViewMode === "grid" && "flex flex-col",
+                  articleViewMode === "full" && "flex flex-col",
                   articleViewMode === "list" && "flex items-center gap-3 p-3"
                 )}
               >
                 {/* Image */}
-                {article.cover_image && (
+                {article.cover_image ? (
                   <div
                     className={cn(
                       "overflow-hidden bg-muted shrink-0",
                       articleViewMode === "grid" && "aspect-[16/10] w-full",
+                      articleViewMode === "full" && "aspect-[16/9] w-full",
                       articleViewMode === "list" && "w-20 h-20 sm:w-24 sm:h-24 rounded-xl"
                     )}
                   >
@@ -460,6 +524,17 @@ export default function HomePage() {
                       loading="lazy"
                     />
                   </div>
+                ) : (
+                  <div
+                    className={cn(
+                      "overflow-hidden bg-muted flex items-center justify-center shrink-0 text-3xl",
+                      articleViewMode === "grid" && "aspect-[16/10] w-full",
+                      articleViewMode === "full" && "aspect-[16/9] w-full",
+                      articleViewMode === "list" && "w-20 h-20 rounded-xl"
+                    )}
+                  >
+                    🥐
+                  </div>
                 )}
 
                 {/* Content */}
@@ -467,27 +542,30 @@ export default function HomePage() {
                   className={cn(
                     "flex-1 flex flex-col justify-between",
                     articleViewMode === "grid" && "p-3 sm:p-4",
+                    articleViewMode === "full" && "p-4 space-y-2",
                     articleViewMode === "list" && "py-0.5"
                   )}
                 >
                   <div>
                     <h3
                       className={cn(
-                        "font-display font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2",
-                        articleViewMode === "grid" ? "text-xs sm:text-sm" : "text-sm sm:text-base"
+                        "font-display font-bold text-foreground group-hover:text-primary transition-colors",
+                        articleViewMode === "grid" && "text-xs sm:text-sm line-clamp-2",
+                        articleViewMode === "full" && "text-base sm:text-lg",
+                        articleViewMode === "list" && "text-sm sm:text-base line-clamp-2"
                       )}
                     >
                       {article.title}
                     </h3>
-                    {article.excerpt && articleViewMode === "list" && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                    {article.excerpt && (articleViewMode === "full" || articleViewMode === "list") && (
+                      <p className={cn("text-xs text-muted-foreground mt-1", articleViewMode === "list" ? "line-clamp-1" : "line-clamp-2")}>
                         {article.excerpt}
                       </p>
                     )}
                   </div>
                   {article.published_at && (
                     <div className="flex items-center gap-1.5 mt-2 text-[10px] sm:text-xs text-muted-foreground">
-                      <Calendar className="w-3 h-3" />
+                      <Calendar className="w-3 h-3 text-primary" />
                       <span>
                         {new Date(article.published_at).toLocaleDateString("id-ID", {
                           day: "numeric",
@@ -501,8 +579,8 @@ export default function HomePage() {
               </Link>
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
     </div>
   );
 }

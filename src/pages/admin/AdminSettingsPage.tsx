@@ -138,6 +138,7 @@ export default function AdminSettingsPage() {
 
   // Homepage product limit setting
   const [homeProductsLimit, setHomeProductsLimit] = useState("10");
+  const [homeArticlesLimit, setHomeArticlesLimit] = useState("4");
   const [isSavingLimit, setIsSavingLimit] = useState(false);
 
   // Forms
@@ -245,8 +246,9 @@ export default function AdminSettingsPage() {
           googleOAuthForm.setValue("clientSecret", sec);
           setGoogleOAuthEnabled(!!cid && !!sec);
 
-          // Home limit
+          // Home limits
           if (map.get("home_products_limit")) setHomeProductsLimit(map.get("home_products_limit"));
+          if (map.get("home_articles_limit")) setHomeArticlesLimit(map.get("home_articles_limit"));
         }
       } catch (err) {
         console.error("Error loading settings:", err);
@@ -456,6 +458,25 @@ export default function AdminSettingsPage() {
       toast.error(errorMessage);
     } finally {
       setIsLoadingOAuth(false);
+    }
+  };
+
+  const handleSaveHomeLimits = async () => {
+    setIsSavingLimit(true);
+    try {
+      await Promise.all([
+        upsertSetting("home_products_limit", homeProductsLimit),
+        upsertSetting("home_articles_limit", homeArticlesLimit),
+      ]);
+      queryClient.invalidateQueries({ queryKey: ["setting_home_products_limit"] });
+      queryClient.invalidateQueries({ queryKey: ["setting_home_articles_limit"] });
+      queryClient.invalidateQueries({ queryKey: ["home_latest_articles"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast.success("Batasan jumlah produk & artikel di Beranda berhasil disimpan!");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal menyimpan batasan konten");
+    } finally {
+      setIsSavingLimit(false);
     }
   };
 
@@ -915,6 +936,85 @@ export default function AdminSettingsPage() {
                 </Button>
                 <Button variant="outline" onClick={resetAppearance} disabled={isSavingAppearance} className="rounded-xl">
                   Reset ke Default
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          {/* Pengaturan Batasan Jumlah Konten Beranda */}
+          <Card className="rounded-2xl shadow-soft border-border/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Store className="w-5 h-5 text-primary" />
+                Jumlah Konten Ditampilkan di Beranda
+              </CardTitle>
+              <CardDescription>
+                Atur berapa banyak item produk dan artikel resep yang ingin dimunculkan di halaman utama (Beranda)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* Produk Limit */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground">
+                    Maksimal Produk di Beranda
+                  </label>
+                  <Select value={homeProductsLimit} onValueChange={setHomeProductsLimit}>
+                    <SelectTrigger className="rounded-xl bg-card border-border">
+                      <SelectValue placeholder="Pilih batas produk" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="4">4 Produk</SelectItem>
+                      <SelectItem value="6">6 Produk</SelectItem>
+                      <SelectItem value="8">8 Produk</SelectItem>
+                      <SelectItem value="10">10 Produk (Default)</SelectItem>
+                      <SelectItem value="12">12 Produk</SelectItem>
+                      <SelectItem value="16">16 Produk</SelectItem>
+                      <SelectItem value="20">20 Produk</SelectItem>
+                      <SelectItem value="all">Tampilkan Semua Produk</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Batas jumlah kue/roti yang tampil sebelum pengunjung menekan &quot;Lihat Semua&quot;.
+                  </p>
+                </div>
+
+                {/* Artikel Limit */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground">
+                    Maksimal Artikel &amp; Resep di Beranda
+                  </label>
+                  <Select value={homeArticlesLimit} onValueChange={setHomeArticlesLimit}>
+                    <SelectTrigger className="rounded-xl bg-card border-border">
+                      <SelectValue placeholder="Pilih batas artikel" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="2">2 Artikel</SelectItem>
+                      <SelectItem value="3">3 Artikel</SelectItem>
+                      <SelectItem value="4">4 Artikel (Default)</SelectItem>
+                      <SelectItem value="6">6 Artikel</SelectItem>
+                      <SelectItem value="8">8 Artikel</SelectItem>
+                      <SelectItem value="10">10 Artikel</SelectItem>
+                      <SelectItem value="all">Tampilkan Semua Artikel</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Batas jumlah artikel blog/resep yang tampil di bagian bawah Beranda.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  onClick={handleSaveHomeLimits}
+                  disabled={isSavingLimit}
+                  className="rounded-xl font-semibold gap-1.5"
+                >
+                  {isSavingLimit ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-1" />
+                  )}
+                  Simpan Batasan Konten Beranda
                 </Button>
               </div>
             </CardContent>
