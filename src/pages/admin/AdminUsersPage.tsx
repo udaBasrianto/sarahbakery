@@ -225,7 +225,16 @@ export default function AdminUsersPage() {
     try {
       if (targetRole === "admin") {
         await apiClient.from("users").update({ role: "admin" }).eq("id", roleDialogUser.id);
-        await apiClient.from("super_admins").insert({ user_id: roleDialogUser.id });
+        
+        const { data: existingAdmin } = await apiClient
+          .from("super_admins")
+          .select("id")
+          .eq("user_id", roleDialogUser.id)
+          .maybeSingle();
+
+        if (!existingAdmin) {
+          await apiClient.from("super_admins").insert({ user_id: roleDialogUser.id });
+        }
       } else {
         if (roleDialogUser.id === 1) {
           toast.error("Admin utama (ID 1) tidak dapat diubah menjadi user");
@@ -244,6 +253,7 @@ export default function AdminUsersPage() {
       setRoleDialogUser(null);
       loadUsers();
     } catch (err: any) {
+      console.error("Error toggling role:", err);
       toast.error("Gagal mengubah role pengguna: " + (err.message || ""));
     } finally {
       setRoleSubmitting(false);
