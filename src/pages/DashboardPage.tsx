@@ -13,7 +13,8 @@ import {
   Edit2,
   LayoutDashboard,
   Heart,
-  Gift
+  Gift,
+  Newspaper
 } from "lucide-react";
 import { useWishlist } from "@/hooks/useWishlist";
 import { toast } from "sonner";
@@ -348,6 +349,17 @@ export default function DashboardPage() {
             <div className="flex items-center gap-3">
               <Gift className="w-5 h-5 text-primary" />
               <span className="text-foreground">Program Affiliate</span>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </Link>
+          <div className="border-t border-border" />
+          <Link
+            to="/blog"
+            className="flex items-center justify-between p-4 hover:bg-secondary/50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Newspaper className="w-5 h-5 text-primary" />
+              <span className="text-foreground">Artikel &amp; Resep</span>
             </div>
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </Link>

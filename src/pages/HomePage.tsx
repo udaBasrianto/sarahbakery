@@ -5,7 +5,7 @@ import { apiClient } from "@/integrations/api/client";
 import { ProductCard, ProductCardVariant } from "@/components/ProductCard";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import { HeroSlider } from "@/components/HeroSlider";
-import { Loader2, Sparkles, ChevronRight, LayoutGrid, Columns2, List } from "lucide-react";
+import { Loader2, Sparkles, ChevronRight, LayoutGrid, Columns2, List, Newspaper, Calendar } from "lucide-react";
 import { useWishlist } from "@/hooks/useWishlist";
 import { SEO } from "@/components/SEO";
 import { HeaderNav } from "@/components/HeaderNav";
@@ -105,6 +105,20 @@ export default function HomePage() {
     },
   });
 
+  const { data: latestArticles = [] } = useQuery({
+    queryKey: ["home_latest_articles"],
+    queryFn: async () => {
+      const { data, error } = await apiClient
+        .from("blog_posts")
+        .select("id, title, slug, excerpt, cover_image, published_at")
+        .eq("is_published", true)
+        .order("published_at", { ascending: false })
+        .limit(3);
+      if (error) return [];
+      return data || [];
+    },
+  });
+
   return (
     <div className="min-h-screen bg-background pb-safe">
       <SEO jsonLd={homeJsonLd} />
@@ -143,7 +157,7 @@ export default function HomePage() {
       </section>
 
       {/* Products Section */}
-      <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-2 mb-12">
+      <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-2 mb-6">
         {/* Header Title + View Filter Switcher Toolbar */}
         <div className="flex items-center justify-between mb-4 gap-2">
           <div>
@@ -248,6 +262,78 @@ export default function HomePage() {
           </div>
         )}
       </section>
+
+      {/* Latest Articles Section */}
+      {latestArticles.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4 mb-16">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-xl bg-primary/10 text-primary">
+                <Newspaper className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="font-display text-lg lg:text-xl font-bold text-foreground">
+                  Artikel &amp; Resep Terbaru
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Tips memanggang, resep kue lezat, dan cerita dapur Sarah
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/blog"
+              className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5"
+            >
+              Lihat Semua <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {latestArticles.map((article: any) => (
+              <Link
+                key={article.id}
+                to={`/blog/${article.slug}`}
+                className="group bg-card border border-border/80 rounded-2xl overflow-hidden shadow-soft hover:shadow-md transition-all flex flex-col"
+              >
+                {article.cover_image && (
+                  <div className="aspect-[16/9] w-full overflow-hidden bg-muted">
+                    <img
+                      src={article.cover_image}
+                      alt={article.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                    />
+                  </div>
+                )}
+                <div className="p-4 flex-1 flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-display font-bold text-sm sm:text-base text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+                      {article.title}
+                    </h3>
+                    {article.excerpt && (
+                      <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
+                        {article.excerpt}
+                      </p>
+                    )}
+                  </div>
+                  {article.published_at && (
+                    <div className="flex items-center gap-1.5 mt-3 text-[11px] text-muted-foreground pt-2 border-t border-border/50">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>
+                        {new Date(article.published_at).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -29,7 +29,7 @@ const navItems = [
   { icon: FileBarChart, label: "Laporan Penjualan", path: "/admin/reports" },
   { icon: Users, label: "Pengguna & Role", path: "/admin/users" },
   { icon: Gift, label: "Affiliate", path: "/admin/affiliates" },
-  { icon: Newspaper, label: "Blog", path: "/admin/blog" },
+  { icon: Newspaper, label: "Artikel & Blog", path: "/admin/blog" },
   { icon: Image, label: "Banner", path: "/admin/banners" },
   { icon: Settings, label: "Pengaturan", path: "/admin/settings" },
 ];
