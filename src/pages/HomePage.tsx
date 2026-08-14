@@ -5,7 +5,7 @@ import { apiClient } from "@/integrations/api/client";
 import { ProductCard, ProductCardVariant } from "@/components/ProductCard";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import { HeroSlider } from "@/components/HeroSlider";
-import { Loader2, Sparkles, ChevronRight, LayoutGrid, Columns2, List, Newspaper, Calendar, ChefHat } from "lucide-react";
+import { Loader2, Sparkles, ChevronRight, LayoutGrid, Columns2, List, Newspaper, Calendar, ChefHat, Heart, Plus } from "lucide-react";
 import { useWishlist } from "@/hooks/useWishlist";
 import { SEO } from "@/components/SEO";
 import { HeaderNav } from "@/components/HeaderNav";
@@ -191,6 +191,29 @@ export default function HomePage() {
     },
   });
 
+  const { data: communityRecipes = [], isLoading: isLoadingCommunity } = useQuery({
+    queryKey: ["home_community_recipes"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await apiClient
+          .from("community_recipes")
+          .select("id, title, slug, cover_image, category, prep_time_minutes, cook_time_minutes, likes_count, user_name, is_curated_by_admin")
+          .eq("is_published", true)
+          .order("created_at", { ascending: false })
+          .limit(10);
+
+        if (error) {
+          console.error("Error fetching community recipes:", error);
+          return [];
+        }
+        return data || [];
+      } catch (err) {
+        console.error("Error in home_community_recipes:", err);
+        return [];
+      }
+    },
+  });
+
   return (
     <div className="min-h-screen bg-background pb-safe">
       <SEO jsonLd={homeJsonLd} />
@@ -200,8 +223,37 @@ export default function HomePage() {
       {/* Hero Slider */}
       <HeroSlider />
 
-      {/* Horizontal Scrollable Discovery Row under Slider (Draggable with Mouse/Pointer) */}
-      <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-3">
+      {/* Dedicated Section: Resep Komunitas di Bawah Slider (Horizontal Scrollable & Draggable) */}
+      <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-4 pb-2">
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-sm shadow-xs">
+              👩‍🍳
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <h2 className="font-display text-sm sm:text-base font-bold text-foreground leading-tight">
+                  Resep Komunitas
+                </h2>
+                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                  Baru
+                </span>
+              </div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                Inspirasi &amp; resep kreasi sesama baker
+              </p>
+            </div>
+          </div>
+
+          <Link
+            to="/community"
+            className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5 shrink-0"
+          >
+            Lihat Semua <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {/* Draggable Horizontal Row of Community Recipes */}
         <div
           ref={underSliderScrollRef}
           onMouseDown={handleUnderSliderMouseDown}
@@ -209,78 +261,101 @@ export default function HomePage() {
           onMouseUp={handleUnderSliderMouseUp}
           onMouseLeave={handleUnderSliderMouseUp}
           className={cn(
-            "flex items-center gap-2.5 overflow-x-auto no-scrollbar scrollbar-hide pb-1 select-none cursor-grab active:cursor-grabbing",
+            "flex items-stretch gap-3 overflow-x-auto no-scrollbar scrollbar-hide pb-2 select-none cursor-grab active:cursor-grabbing",
             isDraggingUnderSlider && "cursor-grabbing"
           )}
         >
-          <Link
-            to="/custom-order"
-            onClick={(e) => {
-              if (hasMovedUnderSlider) e.preventDefault();
-            }}
-            className="flex items-center gap-2.5 px-3.5 py-2 bg-gradient-to-r from-primary/10 via-amber-500/10 to-primary/5 border border-primary/20 rounded-2xl hover:border-primary/40 transition-all shrink-0 group shadow-xs pointer-events-auto"
-          >
-            <span className="w-7 h-7 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shadow-xs">
-              ✨
-            </span>
-            <div className="text-left">
-              <p className="font-bold text-xs text-foreground leading-tight">Custom Cake &amp; PO</p>
-              <p className="text-[10px] text-muted-foreground">Tema bebas • DP 50%</p>
+          {isLoadingCommunity ? (
+            <div className="w-full flex items-center justify-center py-6">
+              <Loader2 className="w-5 h-5 animate-spin text-amber-500" />
             </div>
-          </Link>
+          ) : (
+            <>
+              {communityRecipes.map((recipe: any) => {
+                const totalMins = (recipe.prep_time_minutes || 0) + (recipe.cook_time_minutes || 0);
 
-          <Link
-            to="/community"
-            onClick={(e) => {
-              if (hasMovedUnderSlider) e.preventDefault();
-            }}
-            className="flex items-center gap-2.5 px-3.5 py-2 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-primary/10 border border-amber-500/30 rounded-2xl hover:border-amber-500/50 transition-all shrink-0 group shadow-xs pointer-events-auto"
-          >
-            <span className="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xs font-bold shadow-xs">
-              👩‍🍳
-            </span>
-            <div className="text-left">
-              <div className="flex items-center gap-1">
-                <p className="font-bold text-xs text-foreground leading-tight">Komunitas Resep</p>
-                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
-                  Baru
-                </span>
-              </div>
-              <p className="text-[10px] text-muted-foreground">Baking • Tips • Recook</p>
-            </div>
-          </Link>
+                return (
+                  <Link
+                    key={recipe.id}
+                    to={`/community/${recipe.slug}`}
+                    onClick={(e) => {
+                      if (hasMovedUnderSlider) e.preventDefault();
+                    }}
+                    className="w-44 sm:w-48 shrink-0 bg-card border border-border/80 rounded-2xl overflow-hidden shadow-soft hover:shadow-md hover:border-amber-500/50 transition-all group flex flex-col pointer-events-auto"
+                  >
+                    {/* Thumbnail Cover */}
+                    <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
+                      {recipe.cover_image ? (
+                        <img
+                          src={recipe.cover_image}
+                          alt={recipe.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-3xl bg-amber-50 dark:bg-amber-950/40">
+                          🧁
+                        </div>
+                      )}
 
-          <Link
-            to="/blog"
-            onClick={(e) => {
-              if (hasMovedUnderSlider) e.preventDefault();
-            }}
-            className="flex items-center gap-2.5 px-3.5 py-2 bg-card border border-border/80 rounded-2xl hover:border-primary/40 transition-all shrink-0 group shadow-xs pointer-events-auto"
-          >
-            <span className="w-7 h-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-              📖
-            </span>
-            <div className="text-left">
-              <p className="font-bold text-xs text-foreground leading-tight">Artikel &amp; Blog</p>
-              <p className="text-[10px] text-muted-foreground">Tips resep bolu</p>
-            </div>
-          </Link>
+                      {recipe.is_curated_by_admin && (
+                        <div className="absolute top-1.5 left-1.5 bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full shadow-xs">
+                          Pilihan ⭐
+                        </div>
+                      )}
 
-          <Link
-            to="/affiliate"
-            onClick={(e) => {
-              if (hasMovedUnderSlider) e.preventDefault();
-            }}
-            className="flex items-center gap-2.5 px-3.5 py-2 bg-card border border-border/80 rounded-2xl hover:border-primary/40 transition-all shrink-0 group shadow-xs pointer-events-auto"
-          >
-            <span className="w-7 h-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-              🎁
-            </span>
-            <div className="text-left">
-              <p className="font-bold text-xs text-foreground leading-tight">Affiliate</p>
-              <p className="text-[10px] text-muted-foreground">Komisi referral</p>
-            </div>
-          </Link>
+                      {totalMins > 0 && (
+                        <div className="absolute bottom-1.5 left-1.5 bg-black/60 backdrop-blur-md text-white text-[9px] px-1.5 py-0.2 rounded-full font-medium">
+                          {totalMins} mnt
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Body Info */}
+                    <div className="p-2.5 flex-1 flex flex-col justify-between space-y-1.5">
+                      <div>
+                        <p className="text-[9px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                          {recipe.category || "Resep"}
+                        </p>
+                        <h3 className="font-display font-bold text-xs text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+                          {recipe.title}
+                        </h3>
+                      </div>
+
+                      <div className="pt-1.5 border-t border-border/50 flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span className="truncate max-w-[85px]">
+                          {recipe.user_name || "Baker"}
+                        </span>
+                        <span className="flex items-center gap-0.5 text-rose-500 font-semibold shrink-0">
+                          <Heart className="w-2.5 h-2.5 fill-current" />
+                          {recipe.likes_count || 0}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+
+              {/* Share Recipe CTA Card at the end */}
+              <Link
+                to="/community/create"
+                onClick={(e) => {
+                  if (hasMovedUnderSlider) e.preventDefault();
+                }}
+                className="w-36 sm:w-40 shrink-0 bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent border border-dashed border-amber-500/40 rounded-2xl p-3 flex flex-col items-center justify-center text-center hover:border-amber-500 hover:bg-amber-500/15 transition-all group pointer-events-auto"
+              >
+                <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform mb-1.5">
+                  <Plus className="w-4 h-4" />
+                </div>
+                <p className="font-bold text-xs text-foreground leading-tight">
+                  Tulis Resep
+                </p>
+                <p className="text-[9px] text-muted-foreground mt-0.5">
+                  Bagikan ke komunitas
+                </p>
+              </Link>
+            </>
+          )}
         </div>
       </section>
 
