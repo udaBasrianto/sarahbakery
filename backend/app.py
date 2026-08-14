@@ -829,6 +829,142 @@ async def update_user(request_data: UpdateUserRequest, request: Request, token: 
     user = await fetch_one(pool, "SELECT id, email, phone FROM users WHERE id = $1", user_id)
     return {"data": dict(user), "error": None}
 
+# ----------------- Admin User & Role Management -----------------
+class AdminUserCreateRequest(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    role: Optional[str] = "user"
+
+class AdminRoleUpdateRequest(BaseModel):
+    user_id: int
+    role: str
+
+class AdminPasswordUpdateRequest(BaseModel):
+    user_id: int
+    new_password: str
+
+@app.get("/api/admin/users")
+async def admin_get_users():
+    pool = await open_pool()
+    query = """
+        SELECT 
+            u.id, 
+            u.email, 
+            COALESCE(u.phone, p.phone) as phone, 
+            COALESCE(u.full_name, p.full_name, p.name) as full_name,
+            COALESCE(p.avatar_url, NULL) as avatar_url,
+            COALESCE(p.address, NULL) as address,
+            COALESCE(p.points, 0) as points,
+            CASE 
+                WHEN sa.id IS NOT NULL OR u.role = 'admin' OR u.id = 1 THEN 'admin'
+                ELSE 'user'
+            END as role,
+            u.created_at,
+            (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) as total_orders,
+            (SELECT COALESCE(SUM(o.total_amount), 0) FROM orders o WHERE o.user_id = u.id) as total_spent
+        FROM users u
+        LEFT JOIN profiles p ON p.user_id = u.id
+        LEFT JOIN super_admins sa ON sa.user_id = u.id
+        ORDER BY u.id ASC
+    """
+    rows = await fetch_all(pool, query)
+    users = [dict(r) for r in rows]
+    for u in users:
+        if u.get("total_spent") is not None:
+            u["total_spent"] = float(u["total_spent"])
+        if u.get("total_orders") is not None:
+            u["total_orders"] = int(u["total_orders"])
+        if u.get("points") is not None:
+            u["points"] = int(u["points"])
+        if u.get("created_at"):
+            u["created_at"] = u["created_at"].isoformat()
+    return {"data": users, "error": None}
+
+@app.post("/api/admin/users/role")
+async def admin_update_user_role(req: AdminRoleUpdateRequest):
+    pool = await open_pool()
+    user = await fetch_one(pool, "SELECT id FROM users WHERE id = $1", req.user_id)
+    if not user:
+        return {"data": None, "error": {"message": "Pengguna tidak ditemukan"}}
+    
+    target_role = req.role.lower().strip()
+    if target_role == "admin":
+        await execute(pool, "INSERT INTO super_admins (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING", req.user_id)
+        await execute(pool, "UPDATE users SET role = 'admin' WHERE id = $1", req.user_id)
+    else:
+        if req.user_id == 1:
+            return {"data": None, "error": {"message": "Admin utama (ID 1) tidak dapat diubah menjadi user"}}
+        await execute(pool, "DELETE FROM super_admins WHERE user_id = $1", req.user_id)
+        await execute(pool, "UPDATE users SET role = 'user' WHERE id = $1", req.user_id)
+        
+    return {"data": {"success": True, "user_id": req.user_id, "role": target_role}, "error": None}
+
+@app.post("/api/admin/users/create")
+async def admin_create_user(req: AdminUserCreateRequest):
+    pool = await open_pool()
+    existing = await fetch_one(pool, "SELECT id FROM users WHERE email = $1", req.email)
+    if existing:
+        return {"data": None, "error": {"message": "Email sudah terdaftar"}}
+    
+    hashed_pwd = hash_password(req.password)
+    target_role = (req.role or "user").lower().strip()
+    
+    insert_sql = """
+        INSERT INTO users (email, password_hash, full_name, phone, role, created_at)
+        VALUES ($1, $2, $3, $4, $5, NOW())
+        RETURNING id, email, full_name, phone, role, created_at
+    """
+    row = await fetch_one(pool, insert_sql, req.email, hashed_pwd, req.full_name, req.phone, target_role)
+    new_user_id = row["id"]
+    
+    profile_name = req.full_name or req.email.split("@")[0]
+    try:
+        await execute(
+            pool,
+            "INSERT INTO profiles (user_id, name, full_name, phone, points, referral_code, created_at) VALUES ($1, $2, $3, $4, 0, $5, NOW()) ON CONFLICT (user_id) DO NOTHING",
+            int(new_user_id),
+            profile_name,
+            req.full_name or profile_name,
+            req.phone if req.phone else None,
+            "REF" + str(new_user_id).zfill(6),
+        )
+    except Exception:
+        pass
+
+    if target_role == "admin":
+        await execute(pool, "INSERT INTO super_admins (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING", new_user_id)
+        
+    result = dict(row)
+    if result.get("created_at"):
+        result["created_at"] = result["created_at"].isoformat()
+    return {"data": result, "error": None}
+
+@app.post("/api/admin/users/password")
+async def admin_reset_user_password(req: AdminPasswordUpdateRequest):
+    pool = await open_pool()
+    user = await fetch_one(pool, "SELECT id FROM users WHERE id = $1", req.user_id)
+    if not user:
+        return {"data": None, "error": {"message": "Pengguna tidak ditemukan"}}
+    
+    hashed_pwd = hash_password(req.new_password)
+    await execute(pool, "UPDATE users SET password_hash = $1 WHERE id = $2", hashed_pwd, req.user_id)
+    return {"data": {"success": True, "message": "Password berhasil diubah"}, "error": None}
+
+@app.delete("/api/admin/users/{user_id}")
+async def admin_delete_user(user_id: int):
+    if user_id == 1:
+        return {"data": None, "error": {"message": "Admin utama (ID 1) tidak dapat dihapus"}}
+    pool = await open_pool()
+    user = await fetch_one(pool, "SELECT id FROM users WHERE id = $1", user_id)
+    if not user:
+        return {"data": None, "error": {"message": "Pengguna tidak ditemukan"}}
+    
+    await execute(pool, "DELETE FROM users WHERE id = $1", user_id)
+    return {"data": {"success": True, "message": "Pengguna berhasil dihapus"}, "error": None}
+
+
 IMG_CACHE_DIR = STORAGE_ROOT / "images_cache"
 IMG_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_IMG_HOSTS = (
