@@ -577,7 +577,7 @@ async def query_endpoint(request: QueryRequest):
 
             def _prepare_insert(item: dict):
                 """Coerce values and strip None entries so DB defaults kick in."""
-                pairs = [(k, _coerce_int_if_needed(k, v)) for k, v in item.items()]
+                pairs = [(k, _coerce_insert_val(k, v)) for k, v in item.items()]
                 pairs = [(k, v) for k, v in pairs if v is not None]
                 if not pairs:
                     return [], []
@@ -615,7 +615,7 @@ async def query_endpoint(request: QueryRequest):
             if not conditions:
                 raise HTTPException(status_code=400, detail={"message": "Update requires a filter"})
             set_keys = list(request.data.keys())
-            set_args = [_coerce_int_if_needed(k, v) for k, v in request.data.items()]
+            set_args = [_coerce_insert_val(k, v) for k, v in request.data.items()]
             set_clause_parts = []
             patch_arglist = []
             local_idx = 0
