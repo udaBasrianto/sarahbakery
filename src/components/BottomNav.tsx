@@ -225,7 +225,10 @@ export function BottomNav() {
               </button>
             </SheetTrigger>
 
-            <SheetContent side="bottom" className="rounded-t-3xl max-h-[88vh] overflow-y-auto px-4 pb-8 pt-4">
+            <SheetContent
+              side="bottom"
+              className="w-full max-w-md left-1/2 -translate-x-1/2 right-auto rounded-t-3xl max-h-[85vh] overflow-y-auto px-4 pb-8 pt-4 border-x border-t border-border shadow-2xl"
+            >
               <SheetHeader className="text-left pb-3 border-b border-border/70">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
