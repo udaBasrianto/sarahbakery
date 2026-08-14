@@ -198,7 +198,7 @@ export default function AdminReportsPage() {
         return [
           i + 1,
           format(parseISO(o.created_at), "dd/MM/yyyy HH:mm"),
-          "#" + o.id.slice(0, 8).toUpperCase(),
+          "#" + String(o.id).slice(0, 8).toUpperCase(),
           o.customer_name,
           o.customer_phone,
           o.status,
@@ -390,7 +390,7 @@ export default function AdminReportsPage() {
                 return (
                   <TableRow key={o.id}>
                     <TableCell className="whitespace-nowrap">{format(parseISO(o.created_at), "dd/MM/yy HH:mm")}</TableCell>
-                    <TableCell className="font-mono text-xs">#{o.id.slice(0, 8).toUpperCase()}</TableCell>
+                    <TableCell className="font-mono text-xs">#{String(o.id).slice(0, 8).toUpperCase()}</TableCell>
                     <TableCell>{o.customer_name}</TableCell>
                     <TableCell><span className="text-xs px-2 py-0.5 rounded-full bg-secondary">{o.status}</span></TableCell>
                     <TableCell className="text-right">{fmtIDR(dpp)}</TableCell>
